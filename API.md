@@ -83,8 +83,10 @@ All list endpoints:
 | Scope | Limit |
 |---|---|
 | Authenticated user | 100 req/min |
-| Anonymous IP | 30 req/min |
+| Anonymous IP | 30 req/min — **`/products/`, `/categories/`, `/health/` are exempt** |
 | AI endpoints | 10 req/hour **per user** (seller or admin) |
+
+The public catalog opts out of the anonymous throttle on purpose (NFR-07): AD-05 makes catalog pages a server-side Next.js `fetch`, so every public request reaches Django from one origin IP and a 30/min per-IP limit would cap the whole site's browsing traffic. Per-client limits on those routes come from a trusted forwarded header or the edge, never from the raw peer IP.
 
 ### 1.7 Computed Fields
 
@@ -361,7 +363,7 @@ Any `price`, `total`, or `line_total` in the body is **never read**. Totals come
 | `empty_cart` | 400 | cart has no items |
 | `validation_error` | 400 | missing contact/delivery fields |
 | `cart_has_issues` | 409 | unacknowledged issues; `details.issues[]` |
-| `insufficient_stock` | 409 | stock dropped between cart read and lock; `details.product_id`, `details.available` |
+| `insufficient_stock` | 409 | stock dropped between cart read and lock; `details.product_id`, plus `details.available` **under the same clamp as §4** (present only when `stock_quantity <= LOW_STOCK_THRESHOLD`) |
 
 > Client rule: disable the confirm button on click and reuse the **same** `Idempotency-Key` for every retry of the same attempt.
 
@@ -375,6 +377,8 @@ Caller's orders only, newest first. Filter: `?status=pending`.
 ```json
 {
   "count": 3,
+  "next": null,
+  "previous": null,
   "results": [
     {
       "id": 88,
@@ -543,6 +547,8 @@ Soft delete → `status = "archived"`. Row is never removed; products referenced
 
 `multipart/form-data`: `image` (file), optional `sort_order` (int).
 
+**Omitting `sort_order` appends** — the server assigns `max(sort_order) + 1` for that product (`0` for the first image). It must not default to `0`, or the second image of every product would collide with the first under DR-06's `UNIQUE(product, sort_order)` and fail a request that supplied nothing.
+
 Limits: max 5 images per product · ≤ 2 MB each · `image/jpeg`, `image/png`, `image/webp` (real MIME checked, not just extension).
 
 **201** `{ "id": 92, "image": "/media/products/soap-3.webp", "sort_order": 2 }`
@@ -698,6 +704,8 @@ Every AI response is stored as an `AIContentSuggestion` with `review_status: "pe
 { "suggestion_id": 56, "status": "needs_regeneration", "reason": "low_confidence" }
 ```
 
+`reason` ∈ `low_confidence` (confidence < 0.5) · `schema_invalid` (anything in the table below failed). Two distinct causes need two distinct reasons — a regenerate is worth retrying on `low_confidence` and is a provider bug on `schema_invalid`.
+
 Rejection triggers (`review_status` stored as `rejected`, no `output` returned):
 
 | Rule | Constraint |
@@ -760,7 +768,13 @@ Note types: `missing_info` · `suspicious_claims` · `inappropriate_terms`. Advi
 
 ### `POST /api/ai/suggestions/<id>/accept/`
 
+```json
+{ "product_id": 41 }
+```
+
 Explicit human action. Writes the suggested values onto the product and records the reviewer. The product **stays `draft`** — publishing remains a separate call (§7).
+
+**The target is bound at accept time, not at suggest time.** `/suggest-description/` and `/suggest-tags/` carry no product id — a suggestion may legitimately precede the product it ends up on (DB_DESIGN R-05), which is exactly why `target_id` is a nullable soft reference. So `product_id` is **required in the accept body when the suggestion's `target_id` is null**, and is written onto `target_id` in the same transaction; when `target_id` is already set (e.g. a `/moderate/` suggestion) the body field is optional and must match it. `product_id` must name a product the caller owns (admin: any) ⇒ otherwise `404`.
 
 What "writes the values" means depends on `suggestion_type`:
 
@@ -775,7 +789,7 @@ What "writes the values" means depends on `suggestion_type`:
 { "suggestion_id": 55, "review_status": "accepted", "product_id": 41, "product_status": "draft" }
 ```
 
-**Errors:** `400 validation_error` (already reviewed, `suggestion_type = "moderation"`, or suggestion has no product target) · `404`.
+**Errors:** `400 validation_error` (already reviewed, `suggestion_type = "moderation"`, `product_id` missing while `target_id` is null, or `product_id` conflicts with an already-bound `target_id`) · `404` (unknown or not-owned product).
 
 ### `POST /api/ai/suggestions/<id>/reject/`
 

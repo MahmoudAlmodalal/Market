@@ -1,91 +1,115 @@
 # Bug Report — Souqi repo review
 
-Reviewed: `api/` scaffold (P01 only), `docker-compose.yml`, `.env.example`, and the four spec docs.
+Reviewed: `api/` scaffold, `docker-compose.yml`, `.env.example`, and the four spec docs.
 `confirmed` = reproduced by running it. `inspected` = read, not executed.
+
+**Status after the fix pass:** verified with `docker compose run --rm api python manage.py migrate`
+(clean, `accounts.0001_initial` applied), `python -m pytest` (6 passed on real Postgres), and a live
+container on :8020 — `/api/health/` 200, `/admin/login/` 200 under `DEBUG=False`, unknown route
+returns the §1.2 envelope.
 
 ---
 
 ## A. Breaks right now
 
-### A1 — `/admin/` 500s: manifest storage with no `collectstatic` — **confirmed**
-`souqi/settings.py:80` uses `CompressedManifestStaticFilesStorage`, but `api/Dockerfile` never runs `collectstatic`.
+### A1 — `/admin/` 500s: manifest storage with no `collectstatic` — **confirmed → FIXED**
+`souqi/settings.py` uses `CompressedManifestStaticFilesStorage`, but the Dockerfile never ran `collectstatic`:
 
 ```
 ValueError: Missing staticfiles manifest entry for 'admin/css/base.css'
 ```
 
-Fires on any admin page with `DEBUG=False` (the default). Fix: add `RUN python manage.py collectstatic --noinput` to the Dockerfile, or move it into the P41 entrypoint alongside `migrate`.
+Fixed by `api/entrypoint.sh` (`migrate` → `collectstatic --noinput` → `exec gunicorn`), wired as the
+Dockerfile `ENTRYPOINT`. It runs at boot rather than build time because compose mounts `./api` over
+`/app`, which would discard anything staged into the image. `/admin/login/` now returns 200.
 
-Note the compose mount `./api:/app` shadows anything built into the image at `/app`, so a Dockerfile-time `collectstatic` is wiped in dev — the entrypoint is the fix that actually works for both.
-
-### A2 — Fresh clone can't start: `env_file: .env` is mandatory — **inspected**
-`docker-compose.yml:18` hard-requires `.env`, which `.gitignore:1` excludes. It exists on this machine, so it works locally and fails for everyone else. P01's own DoD (`docker compose run --rm api python manage.py check`) is unreachable on a clean checkout.
-
-Fix: `env_file: {path: .env, required: false}`, or a README line `cp .env.example .env`. `README.md` is currently one word.
+### A2 — Fresh clone can't start: `env_file: .env` is mandatory — **inspected → FIXED**
+`.env` is gitignored, so compose failed for anyone but the author. Now `env_file: {path: .env,
+required: false}`, and `README.md` carries the two-line setup (`cp .env.example .env` + key generation).
 
 ---
 
-## B. Landmine — nothing stops it firing today
+## B. Landmine — nothing stopped it firing
 
-### B1 — `AUTH_USER_MODEL` is unset — **confirmed** (`manage.py migrate` runs clean today)
-`PLAN.md:422` calls this non-negotiable #1: *"P03 before every other model. Changing `AUTH_USER_MODEL` after migrations exist means rebuilding the database."* Settings don't set it, and nothing prevents `manage.py migrate` from running now and baking `auth.User` into the DB.
+### B1 — `AUTH_USER_MODEL` was unset — **confirmed → FIXED**
+`PLAN.md` non-negotiable #1: *"P03 before every other model."* Nothing prevented `migrate` from baking
+`auth.User` into the DB, and the A1/D4 entrypoint fix would have made that self-firing on the next
+`compose up`.
 
-This is the top-priority item despite nothing being broken: it's the only defect here that becomes **irreversible** the moment someone runs the obvious next command. Either ship `accounts.User` (P03) before anyone migrates, or add a guard.
+Shipped P03 to close it: `accounts/User` (`AbstractUser`, `USERNAME_FIELD='email'`, no `username`,
+email-keyed manager, `UniqueConstraint(Lower('email'))` = DR-01), its migration, and
+`AUTH_USER_MODEL = 'accounts.User'`. **Scope note:** this is one phase of implementation, not a
+patch — it was the only real fix available, since the setting can't point at an app that doesn't exist.
+P04/P05 (SellerProfile, registration, JWT views) were left alone.
 
-### B2 — Known `SECRET_KEY` with `DEBUG=False` — **confirmed** via `check --deploy` (W009)
-`settings.py:12` falls back to `'dev-insecure-change-me'`, and `.env.example:1` ships that exact value, so every copied env inherits it. `DEBUG` correctly defaults to `False`, which means a production boot is silent — no warning, working site, forgeable sessions/tokens. Fix: no default; raise if unset when `DEBUG` is false.
+### B2 — Known `SECRET_KEY` with `DEBUG=False` — **confirmed → FIXED**
+`'dev-insecure-change-me'` was the fallback and `.env.example` shipped that same value, so a production
+boot was silent. Now: no usable default — `ImproperlyConfigured` when `SECRET_KEY` is empty and
+`DEBUG=False`; a dev-only key applies solely under `DEBUG=True`. `.env.example` ships an empty
+`SECRET_KEY` with the generator command; your local `.env` got a freshly generated 64-byte key.
 
-### B3 — `EXCEPTION_HANDLER` points at a module that doesn't exist — **confirmed**
-`settings.py:94` → `common.exceptions.exception_handler`; `ModuleNotFoundError: No module named 'common.exceptions'`. `manage.py check` passes because DRF resolves the handler lazily. Latent until the first DRF view lands (P02), then every error response 500s instead of returning the envelope.
+> Consequence: host-side `python3 manage.py …` now needs the env loaded. Use
+> `docker compose run --rm api …`, or export `SECRET_KEY` first.
+
+### B3 — `EXCEPTION_HANDLER` pointed at a module that didn't exist — **confirmed → FIXED**
+`ModuleNotFoundError: No module named 'common.exceptions'`; `manage.py check` passed because DRF
+resolves the handler lazily. `common/errors.py` (API.md §1.4 code constants + `APIError`) and
+`common/exceptions.py` (envelope wrapper) now exist. One branch needed care: `Http404` and Django's
+`PermissionDenied` arrive already translated by DRF but carry no DRF attributes, so the code is read
+off the response rather than `exc.default_code`. Covered by `tests/test_error_envelope.py`.
 
 ---
 
 ## C. Spec contradictions in the docs
 
-### C1 — `POST /ai/suggestions/<id>/accept/` is unreachable for every suggestion type — **inspected**
-`API.md:761-778` defines accept per type, and errors with `400 validation_error` when the suggestion has *no product target*. But:
+### C1 — `POST /ai/suggestions/<id>/accept/` was unreachable for every suggestion type — **inspected → FIXED (design decision)**
+`/suggest-description/` and `/suggest-tags/` carry no product id, so `target_id` was always null for the
+two acceptable types and always set for the one type that can't be accepted (`moderate`). Every accept
+call would 400 with "no product target".
 
-- `/ai/suggest-description/` (`API.md:669`) takes `{name, category_id, attributes, notes}` — **no product id**
-- `/ai/suggest-tags/` (`API.md:717`) takes `{title, description}` — **no product id**
-- `/ai/moderate/` takes `product_id` but is explicitly **not acceptable** (`API.md:771`)
+**Decision: bind the target at accept time.** `accept/` takes `product_id`, required when `target_id` is
+null and written onto it in the same transaction; optional and must-match when already bound. Suggest-time
+binding was rejected because it can't express R-05's "suggestion precedes the product", which is the whole
+reason `target_id` is a nullable soft reference. Applied to `API.md` §9 and `PLAN.md` P37.
 
-So `target_id` is always null for the two acceptable types, and always non-null for the one type that can't be accepted. Every accept call 400s. Either the two suggest endpoints need an optional `product_id`, or accept needs to take a target. `PLAN.md:375-378` inherits the same hole. This one blocks P37 and should be settled before P34 starts.
+### C2 — `sort_order` collided on the second image when the caller omitted it — **inspected → FIXED**
+`default 0` under `UNIQUE(product, sort_order)` meant a second upload with no `sort_order` 400'd on a field
+the caller never sent. `API.md` §7 and `PLAN.md` P09/P29 now specify append semantics (`max + 1`), with the
+model default kept as a model-level default only.
 
-### C2 — `sort_order` collides on the second image when the caller omits it — **inspected**
-`ProductImage.sort_order` defaults to `0` (`PLAN.md:120`) under `UNIQUE(product, sort_order)` (DR-06). `API.md:544` makes `sort_order` optional on upload. Upload two images without it ⇒ `400 validation_error: sort_order taken` for a caller who supplied nothing. Needs auto-assign (`max(sort_order)+1`) in P29.
+### C3 — `details.available` clamp stated in §4, not §5 — **inspected → FIXED**
+The checkout `409` row in `API.md` §5 now carries the same clamp caveat as §4.
 
-### C3 — `details.available` clamp is stated in §4 but not §5 — **inspected**
-`API.md:291` says the clamp applies to the checkout `409` too, but the §5 error table (`API.md:364`) lists `details.available` unconditionally. Same field, two readings; §5 is the one an implementer copies. `PLAN.md:243` gets it right.
+### C4 — `API.md` §1.6 omitted the public-catalog throttle exemption — **inspected → FIXED**
+NFR-07's exemption for `/products/`, `/categories/`, `/health/` (and the AD-05 single-origin-IP reason
+behind it) is now in the rate-limit table, not only in SRS/PLAN.
 
-### C4 — `API.md:1.6` omits the public-catalog throttle exemption — **inspected**
-`SRS.md:548` (NFR-07) and `PLAN.md:50` exempt `/products/`, `/categories/`, `/health/` from `AnonRateThrottle` — the exemption exists precisely because AD-05 funnels all public traffic through one Next.js IP. `API.md:81-87` states a flat "Anonymous IP 30 req/min" with no exemption. A frontend dev reading only API.md will design for a limit that shouldn't apply.
-
-### C5 — DB_DESIGN contradicts its own normalization claim — **inspected**
-`DB_DESIGN.md:164` (2NF): *"No table has a natural composite key."* But `:154` and `:156` name `(product_id, sort_order)` and `(cart_id, product_id)` as candidate keys. Both are true statements about different things (PK choice vs. candidate keys) but as written they conflict. Also: the "set `db_index=False` where a composite prefix covers the FK" rule at `:239` covers only IX-01..04 — the same logic applies to `ProductImage.product` (DR-06) and `CartItem.cart` (DR-07), and `PLAN.md` P09/P14 don't set it there.
+### C5 — DB_DESIGN contradicted its own normalization claim — **inspected → FIXED**
+2NF text said "no table has a natural composite key" while §2.1 named two candidate keys. Reworded to
+separate *primary* key from *candidate* key. The §3.3 `db_index=False` rule also applies to
+`ProductImage.product` (DR-06) and `CartItem.cart` (DR-07); `PLAN.md` P09/P14 now say so.
 
 ---
 
-## D. Latent / drift — one line each
+## D. Latent / drift
 
-| # | Finding | Where |
+| # | Finding | Status |
 |---|---|---|
-| D1 | `django-filter` installed but not in `INSTALLED_APPS` — needed by P12 | `settings.py:16`, `requirements.txt:6` |
-| D2 | No `SIMPLE_JWT` block: defaults are 5m/1d, spec says 15m/7d | `settings.py`, `API.md:5`, `PLAN.md:85` |
-| D3 | PLAN says DRF 3.15, requirements pin `3.16.*` | `PLAN.md:21` vs `requirements.txt:2` |
-| D4 | No `migrate` in the container entrypoint — CMD is bare gunicorn (P41 scope) | `Dockerfile:11` |
-| D5 | `pytest`/`pytest-django` ship in the production image | `requirements.txt:10-11` |
-| D6 | `pytest.ini` listed in the PLAN layout, absent from the repo | `PLAN.md:26` |
-| D7 | `check --deploy`: no HSTS, `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` (W004/W008/W012/W016) | `settings.py` |
-| D8 | `GET /api/orders/` example omits `next`/`previous` that §1.5 mandates on every list | `API.md:376` |
-| D9 | Rejected AI output always reports `reason: "low_confidence"`, with no code for a schema failure | `API.md:698`, `PLAN.md:359` |
-| D10 | Compose `api` mounts source but runs gunicorn without `--reload` — dev edits need a restart | `docker-compose.yml:19-20` |
+| D1 | `django-filter` installed but not in `INSTALLED_APPS` | **fixed** — `django_filters` added |
+| D2 | No `SIMPLE_JWT` block: defaults 5m/1d vs spec 15m/7d | **fixed** — `SIMPLE_JWT` set to 15m/7d |
+| D3 | PLAN said DRF 3.15, requirements pin `3.16.*` | **fixed** — PLAN now says 3.16 |
+| D4 | No `migrate` in the container entrypoint | **fixed** — in `entrypoint.sh` (see A1) |
+| D5 | `pytest`/`pytest-django` in the production image | **won't fix** — P39 runs pytest *inside* this image against compose Postgres; splitting requirements would break that |
+| D6 | `pytest.ini` in the PLAN layout, absent from repo | **fixed** — added, `testpaths = tests` |
+| D7 | `check --deploy`: no HSTS / SSL redirect / secure cookies | **fixed, opt-in** — gated behind `HTTPS_ONLY=true`. Not enabled by default: compose serves plain `:8000` with no TLS terminator, so unconditional `SECURE_SSL_REDIRECT` would break the only deployment that exists. Flip it when a real proxy lands |
+| D8 | `GET /api/orders/` example omitted `next`/`previous` | **fixed** |
+| D9 | Rejected AI output always reported `reason: "low_confidence"` | **fixed** — `low_confidence` vs `schema_invalid` (retry-worthy vs provider bug) |
+| D10 | Compose runs gunicorn without `--reload` despite mounting source | **fixed** — `--reload` in the compose `command:` override, not in the image CMD |
 
 ---
 
-## Suggested order
+## Not a repo bug, but it will bite
 
-1. **B1** — before anyone runs `migrate`.
-2. **A1 + A2 + D4** — one entrypoint script fixes all three (`migrate` → `collectstatic` → gunicorn) plus `required: false`.
-3. **B2** — five lines in settings.
-4. **C1** — a doc decision that blocks P34–P37; settle it before writing the AI app.
-5. Everything else lands naturally with its phase.
+Host port `8000` is already taken by another project (`noor_alhuda`), so `docker compose up` fails to bind
+and `curl localhost:8000` silently hits that other app. Smoke tests above ran on `:8020`. Either stop the
+other stack or change the published port here.

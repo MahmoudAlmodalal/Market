@@ -18,7 +18,7 @@ This plan splits the backend into **41 small phases** (P01–P41). Each phase is
 
 ## Stack & Layout
 
-Django 5.2 · DRF 3.15 · `djangorestframework-simplejwt` · PostgreSQL 16 · gunicorn · WhiteNoise · pytest-django.
+Django 5.2 · DRF 3.16 · `djangorestframework-simplejwt` · PostgreSQL 16 · gunicorn · WhiteNoise · pytest-django.
 Host already has Python 3.10.12, Django 5.2.15, Docker Compose v2.38.2. The `api` image pins its own Python — host version does not bind.
 
 ```
@@ -117,8 +117,9 @@ docker-compose.yml  .env.example  docs/plans/
 ### P09 — `ProductImage` model
 **Files:** `api/catalog/models.py`, migration
 
-- `product FK(CASCADE, related_name='images')`, `image ImageField(upload_to='products/')`, `sort_order PositiveSmallIntegerField default 0`.
-- **DR-06** `UniqueConstraint(product, sort_order)` — doubles as the `ORDER BY sort_order` index (FR-14).
+- `product FK(CASCADE, related_name='images', db_index=False)`, `image ImageField(upload_to='products/')`, `sort_order PositiveSmallIntegerField default 0`.
+- **DR-06** `UniqueConstraint(product, sort_order)` — doubles as the `ORDER BY sort_order` index (FR-14), and its `(product, …)` prefix covers the FK lookup, so the FK carries `db_index=False` per DB_DESIGN §3.3.
+- The `default 0` is a **model-level** default only. P29 must assign `max(sort_order) + 1` when the request omits `sort_order`; leaving the default to apply would make every product's second image collide with its first.
 - `Meta.ordering = ['sort_order']`.
 - **Trace:** SRS §4.5, DR-06.
 
@@ -160,7 +161,7 @@ docker-compose.yml  .env.example  docs/plans/
 ### P14 — `Cart` / `CartItem` models
 **Files:** `api/orders/models.py`, migration
 
-- `Cart.customer OneToOne(User, CASCADE)`. `CartItem.cart FK(CASCADE, related_name='items')`, `product FK(Product, CASCADE)`, `quantity PositiveIntegerField`, `unit_price_at_add Decimal(10,2)`, `created_at` (needed for stable line ordering).
+- `Cart.customer OneToOne(User, CASCADE)`. `CartItem.cart FK(CASCADE, related_name='items', db_index=False)` — DR-07's `(cart, product)` prefix covers it (DB_DESIGN §3.3) — `product FK(Product, CASCADE)`, `quantity PositiveIntegerField`, `unit_price_at_add Decimal(10,2)`, `created_at` (needed for stable line ordering).
 - `unit_price_at_add` ships **with the model, not later** — FR-25/26 cannot detect price drift without it, and it is the reference P18 compares against. Written on every add/update; never read for money (N-09).
 - **DR-07** `UniqueConstraint(cart, product)` — makes replace-semantics structural. **DR-08** `quantity >= 1`.
 - **Trace:** SRS §4.6, DR-07/08, OD02.
@@ -301,7 +302,7 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 ### P29 — Image upload / delete
 **Files:** `api/catalog/views.py`, `serializers.py`
 
-- `POST /api/seller/products/<id>/images/` — `multipart/form-data`: `image`, optional `sort_order`. Limits: ≤5 per product · ≤2 MB · real MIME sniff (read the file header, not the extension — SEC-07) restricted to `image/jpeg|png|webp`. Media stored under `MEDIA_ROOT`, outside any executable path.
+- `POST /api/seller/products/<id>/images/` — `multipart/form-data`: `image`, optional `sort_order`; **when omitted, append with `max(sort_order) + 1`** (never the model default `0` — that collides with the first image under DR-06). Limits: ≤5 per product · ≤2 MB · real MIME sniff (read the file header, not the extension — SEC-07) restricted to `image/jpeg|png|webp`. Media stored under `MEDIA_ROOT`, outside any executable path.
 - `DELETE /api/seller/products/<id>/images/<image_id>/` → 204.
 - **Errors:** `400 validation_error` — too large, wrong type, 5-image limit, `sort_order` already taken (DR-06 also enforces this at the DB).
 - **Trace:** FR-55, SEC-07, DR-06.
@@ -356,7 +357,7 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 
 - Model per SRS §4.10: `target_type`, `target_id BigInteger(null)` (soft ref, no FK — R-05), `suggestion_type` ∈ `description|tags|moderation`, `input_payload JSONField`, `structured_output JSONField`, `confidence Decimal(3,2)`, `review_status` ∈ `pending|accepted|rejected`, `requested_by FK(PROTECT)`, `reviewed_by FK(SET_NULL, null)`. **DR-14** `confidence BETWEEN 0 AND 1`.
 - `validation.py` implements AI-01..06 against the §7.1 schema: valid JSON · `title` 3–160 · `short_description` ≤300 · `description` 20–5000 · `highlights` 1–6 each ≤120 · `suggested_tags` 0–10 each `^[\w\s-]{2,30}$` · `0 ≤ confidence ≤ 1`.
-- Any failure **or** `confidence < 0.5` ⇒ row stored with `review_status='rejected'`, response `200 {suggestion_id, status:"needs_regeneration", reason:"low_confidence"}` with **no `output`** — a rejected suggestion is never shown as valid.
+- Any failure **or** `confidence < 0.5` ⇒ row stored with `review_status='rejected'`, response `200 {suggestion_id, status:"needs_regeneration", reason}` with **no `output`** — a rejected suggestion is never shown as valid. `reason` is `low_confidence` for the threshold and `schema_invalid` for an AI-01..06 failure: the first is worth a retry, the second is a provider bug, and one shared string hides which.
 - All text HTML-escaped before storage *and* before return — AI output is untrusted input (AI-06, SEC-09).
 - **Trace:** FR-64/65, AI-01..06, DR-14. Tests: T-25, T-26.
 
@@ -372,10 +373,11 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 ### P37 — Accept / reject + admin listing
 **Files:** `api/ai/views.py`, admin viewset
 
-- `POST /ai/suggestions/<id>/accept/` — explicit human action: writes suggested values onto the target product, sets `review_status='accepted'` + `reviewed_by`. The product **stays `draft`** (AI-08). Returns `{suggestion_id, review_status, product_id, product_status}`.
+- `POST /ai/suggestions/<id>/accept/` `{product_id}` — explicit human action: writes suggested values onto the target product, sets `review_status='accepted'` + `reviewed_by`. The product **stays `draft`** (AI-08). Returns `{suggestion_id, review_status, product_id, product_status}`.
+- **The target binds here, not at suggest time.** Neither `/suggest-description/` nor `/suggest-tags/` carries a product id (API.md §9), so their suggestions are stored with `target_id=null` — that is the point of R-05's soft reference, a suggestion may precede the product. `product_id` is therefore **required in the accept body when `target_id` is null** and written onto `target_id` in the same transaction; when `target_id` is already set it is optional and must match. Ownership is checked on the product (seller: own only, admin: any) ⇒ `404`. Without this, accept is unreachable for every acceptable `suggestion_type`.
 - Accept is defined **per `suggestion_type`** (API.md §9): `description` ⇒ `title → name`, `description → description`; `tags` ⇒ `category → Product.category` only on an exact `Category.name` match (AI-07); `moderation` ⇒ `400 validation_error`, it is advisory and maps to no field. Fields with no MVP home (`short_description`, `highlights`, `suggested_tags`, `tags`) are dropped — there is no `Tag` entity.
 - `POST /ai/suggestions/<id>/reject/` → `{suggestion_id, review_status:"rejected"}`.
-- **Errors:** `400 validation_error` (already reviewed, or no product target) · `404`.
+- **Errors:** `400 validation_error` (already reviewed, `suggestion_type='moderation'`, `product_id` missing while `target_id` is null, or `product_id` conflicting with a bound `target_id`) · `404`.
 - `GET /api/admin/ai-suggestions/` — `?review_status=`, `?suggestion_type=`, paginated.
 - **FR-67 audit:** grep the checkout, stock, permission and transition paths — no AI import may appear in any of them.
 - **Trace:** FR-66/67, AI-08. Tests: T-27.

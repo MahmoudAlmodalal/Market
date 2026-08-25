@@ -21,9 +21,9 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 
 ### TK-02 — Error envelope, codes, health
 **Needs:** TK-01 · **Files:** `common/errors.py`, `common/exceptions.py`, `common/views.py`
-- [ ] One constant per API.md §1.4 code + `APIError(APIException)` base (`code`, `message`, `details`, `status_code`)
-- [ ] Exception handler wraps **every** non-2xx into `{"error":{code,message,details}}` — incl. DRF `ValidationError`, 401, 403, 429, `Http404`
-- [ ] `GET /api/health/` (`AllowAny`, `SELECT 1`) → 200 ok / 503 unreachable
+- [x] One constant per API.md §1.4 code + `APIError(APIException)` base (`code`, `message`, `details`, `status_code`)
+- [x] Exception handler wraps **every** non-2xx into `{"error":{code,message,details}}` — incl. DRF `ValidationError`, 401, 403, 429, `Http404`
+- [x] `GET /api/health/` (`AllowAny`, `SELECT 1`) → 200 ok / 503 unreachable
 - **DoD:** an unknown route returns the envelope, not DRF's default
 - **Trace:** API.md §1.2–1.4/§10, NFR-06
 

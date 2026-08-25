@@ -1,6 +1,9 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlparse
+
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -9,8 +12,14 @@ def env_list(name, default=''):
     return [v.strip() for v in os.environ.get(name, default).split(',') if v.strip()]
 
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-insecure-change-me')
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+SECRET_KEY = os.environ.get('SECRET_KEY', '')
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured('SECRET_KEY must be set when DEBUG=False (SEC-08).')
+    SECRET_KEY = 'dev-insecure-debug-only'
+
 ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 
 INSTALLED_APPS = [
@@ -22,7 +31,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'django_filters',
+    'accounts',
 ]
+
+AUTH_USER_MODEL = 'accounts.User'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -95,6 +108,21 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'common.pagination.StandardPagination',
     'PAGE_SIZE': 20,
 }
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
+
+# TLS terminates outside this container and compose serves plain :8000, so these
+# stay opt-in: enable HTTPS_ONLY once there is a real proxy in front (D7).
+if os.environ.get('HTTPS_ONLY', 'False').lower() == 'true':
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 AI_PROVIDER_KEY = os.environ.get('AI_PROVIDER_KEY', '')
 LOW_STOCK_THRESHOLD = int(os.environ.get('LOW_STOCK_THRESHOLD', '5'))

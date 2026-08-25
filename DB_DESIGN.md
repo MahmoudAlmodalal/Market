@@ -161,7 +161,7 @@ erDiagram
 
 **1NF:** No multi-valued fields or repeating groups. Images in separate table (`ProductImage`) not in array column. Tags not stored as table because they exist only inside pending AI output (§7.1) — when accepted, written to `Product.description`, so no `Tag` entity in MVP.
 
-**2NF:** No table has a natural composite key — all use `BigAutoField` surrogate key, making partial dependencies structurally impossible.
+**2NF:** Every table's *primary* key is a single `BigAutoField`, so no non-key attribute can depend on part of the PK — partial dependencies are structurally impossible. Where a composite **candidate** key exists (`ProductImage(product, sort_order)` DR-06, `CartItem(cart, product)` DR-07) it is enforced as a `UniqueConstraint`, never used as the PK; all non-key attributes still depend on it in full.
 
 **3NF:** No transitive dependencies except in intentional cases below.
 
