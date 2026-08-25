@@ -123,11 +123,15 @@ One notice per entry in the line's `issues[]`. Exactly three codes exist:
 
 | `code` | Copy | Severity | Resolution |
 |---|---|---|---|
-| `price_changed` | "Price changed from `old_price` to `new_price`." | `--warning` | Checkbox **"I accept the new price"** — collected into `acknowledged_issues: ["price_changed"]` on checkout |
-| `insufficient_stock` | "Only `available` left — reduce the quantity." | `--danger` | Inline "Set to `available`" button → `PATCH /cart/items/<id>/` |
+| `price_changed` | "Price changed from `old_price` to `new_price`." | `--warning` | Checkbox **"I accept the new price"** — collected into `acknowledged_issues: [{code:"price_changed", product_id, new_price}]` on checkout |
+| `insufficient_stock` | "Only `available` left — reduce the quantity." when `details.available` is present, else "Not enough stock — reduce the quantity." | `--danger` | Inline "Set to `available`" button → `PATCH /cart/items/<id>/`, shown only when the key is present |
 | `product_unavailable` | "This product is no longer available." | `--danger` | "Remove" button → `DELETE /cart/items/<id>/` |
 
 Only `price_changed` is acknowledgeable. Stock and availability issues must be *resolved* — no checkbox, and the checkout button stays disabled while `has_blocking_issues` is true.
+
+The ack carries the **product and the price the customer actually saw**, not a bare code: if the price moves again before checkout, the server's ack no longer matches the locked row and checkout re-raises `409` with the new figure (FR-26). So re-render the checkbox unchecked whenever `new_price` changes, and never persist a tick across a cart refetch.
+
+`available` is omitted above the low-stock threshold (API §1.4) — the copy and the "Set to" shortcut both have to survive its absence.
 
 ### 3.7 `MultiSellerDialog` — FR-22, OD04
 
@@ -198,7 +202,7 @@ Single module, `lib/errors.ts`: `code → message`. Any unmapped code falls back
 | `invalid_credentials` | 401 | "Incorrect email or password." |
 | `account_suspended` | 401 | "This account has been suspended. Contact support." |
 | `invalid_quantity` | 400 | "Quantity must be at least 1." |
-| `insufficient_stock` | 400/409 | "Only `details.available` left in stock." |
+| `insufficient_stock` | 400 cart / 409 checkout | "Only `details.available` left in stock." — falls back to "Not enough stock." when `available` is absent (omitted above the low-stock threshold) |
 | `product_not_purchasable` | 400 | "This product isn't available for purchase." |
 | `multi_seller_cart` | 409 | *(handled by `MultiSellerDialog`, §3.7)* |
 | `empty_cart` | 400 | "Your cart is empty." |
@@ -220,6 +224,7 @@ AI output is a **suggestion**, never applied automatically, and the UI must show
 
 - Rendered in a bordered `--surface` panel labeled **"AI suggestion — not applied"**, visually distinct from the form fields it proposes to fill.
 - Two explicit actions: **Apply to product** (`POST /ai/suggestions/<id>/accept/`) and **Discard** (`/reject/`). No auto-fill on arrival.
+- **Except the moderation panel**, which is advisory and maps to no product field: it renders its `notes[]` as a read-only checklist with a single **Dismiss** action (`/reject/`). No Apply button — `accept` on a `moderation` suggestion is a `400` by contract (API §9), so offering one would build a button that always fails.
 - `{"status": "needs_regeneration"}` renders "The suggestion didn't meet quality checks." + a **Regenerate** button. The `output` key is absent in that case — never render it optimistically.
 - After accepting, show "Applied. Product is still a draft — publish it when you're ready." (AI-08 made visible.)
 - All suggestion text arrives HTML-escaped from the server; render it as text, never via `dangerouslySetInnerHTML` (AI-06, SEC-09).

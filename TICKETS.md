@@ -11,11 +11,11 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 
 ### TK-01 — Project skeleton, settings, compose
 **Needs:** — · **Files:** `api/souqi/settings.py`, `urls.py`, `requirements.txt`, `Dockerfile`, `docker-compose.yml`, `.env.example`
-- [ ] Django 5.2 + DRF + simplejwt + psycopg project laid out per `PLAN.md` §Stack
-- [ ] Env-only config: `DATABASE_URL`, `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ORIGINS`, `AI_PROVIDER_KEY`, `LOW_STOCK_THRESHOLD=5`
-- [ ] `REST_FRAMEWORK`: default perm `IsAuthenticated`, simplejwt auth, custom exception handler hook, `StandardPagination` (20/`page_size`/max 100)
-- [ ] CORS + `CSRF_TRUSTED_ORIGINS` from env; `DEBUG=False` default
-- [ ] Compose `db` (postgres:16, named volume, healthcheck) + `api`
+- [x] Django 5.2 + DRF + simplejwt + psycopg project laid out per `PLAN.md` §Stack
+- [x] Env-only config: `DATABASE_URL`, `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ORIGINS`, `AI_PROVIDER_KEY`, `LOW_STOCK_THRESHOLD=5`
+- [x] `REST_FRAMEWORK`: default perm `IsAuthenticated`, simplejwt auth, custom exception handler hook, `StandardPagination` (20/`page_size`/max 100)
+- [x] CORS + `CSRF_TRUSTED_ORIGINS` from env; `DEBUG=False` default
+- [x] Compose `db` (postgres:16, named volume, healthcheck) + `api`
 - **DoD:** `docker compose run --rm api python manage.py check` exits 0
 - **Trace:** DEP-01/02, SEC-01/06/08, FR-12, NFR-07
 
@@ -57,7 +57,8 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 ### TK-06 — Suspended guard + throttling
 **Needs:** TK-05 · **Files:** `accounts/authentication.py`, settings
 - [ ] `SuspendedAwareJWTAuthentication` raises `account_suspended` post-resolve; set as default auth class
-- [ ] Throttles: user 100/min, anon 30/min, named scope `ai` 10/hour (reserved)
+- [ ] Throttles: user 100/min, anon 30/min, named scope `ai` 10/hour **keyed on `user_id`** (admins have no seller profile) — consumed by TK-36
+- [ ] `/api/products/`, `/api/categories/`, `/api/health/` **exempt from `AnonRateThrottle`** — AD-05 sends all public traffic from one Next.js server IP, so 30/min/IP would cap the whole site
 - **DoD:** T-24 — suspended user gets 401 on every authenticated endpoint
 - **Trace:** SEC-10, FR-59, NFR-07/08 · **Tests:** T-24
 
@@ -94,7 +95,7 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 
 ### TK-11 — Public catalog list
 **Needs:** TK-08, TK-09, TK-10 · **Files:** `catalog/views.py`, `serializers.py`
-- [ ] `GET /api/products/` `AllowAny`, paginated; queryset = published ∧ seller profile active ∧ seller user active
+- [ ] `GET /api/products/` `AllowAny`, paginated; queryset = published ∧ `seller__status='active'` — one join, not two (TK-32 mirrors `User.status` onto the profile on suspend)
 - [ ] `select_related('seller','category')` + prefetch for `primary_image` (lowest `sort_order`)
 - [ ] Item shape per API.md §3; `stock_quantity` never exposed
 - **DoD:** query count constant across page sizes (no N+1)
@@ -120,7 +121,8 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 
 ### TK-14 — Cart / CartItem models
 **Needs:** TK-08 · **Files:** `orders/models.py` + migration
-- [ ] `Cart.customer OneToOne(User, CASCADE)`; `CartItem(cart, product, quantity, created_at)`
+- [ ] `Cart.customer OneToOne(User, CASCADE)`; `CartItem(cart, product, quantity, unit_price_at_add Decimal(10,2), created_at)`
+- [ ] `unit_price_at_add` ships **with the model** — FR-25/26 cannot detect price drift without it; never read for money (N-09)
 - [ ] DR-07 `unique(cart, product)`, DR-08 `quantity >= 1`
 - **Trace:** SRS §4.6, DR-07/08, OD02
 
@@ -136,7 +138,8 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 - [ ] `PATCH /api/cart/items/<id>/`, `DELETE /api/cart/items/<id>/` → 204, `DELETE /api/cart/` → 204 (keeps cart row)
 - [ ] Every item lookup scoped `cart__customer=request.user`; foreign item ⇒ 404
 - [ ] POST (201) and PATCH (200) both return the **full cart body**
-- [ ] Errors: `invalid_quantity` · `insufficient_stock` + `details.available` · `product_not_purchasable`
+- [ ] Errors: `invalid_quantity` · `insufficient_stock` · `product_not_purchasable`
+- [ ] `details.available` **only** when `stock_quantity <= threshold` — unclamped it is a stock oracle (`quantity: 99999` reads exact inventory FR-16 hides). Same clamp in TK-18 and TK-22.
 - **Trace:** FR-18..21/23, SEC-04 · **Tests:** T-05, T-06, T-10
 
 ### TK-17 — Single-seller cart
@@ -147,7 +150,7 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 
 ### TK-18 — Revalidation + `GET /api/cart/`
 **Needs:** TK-17, TK-10 · **Files:** `orders/services.py`, `serializers.py`
-- [ ] Migration: add `CartItem.unit_price_at_add Decimal(10,2)`, written on every add/update (drift detection only)
+- [ ] Write `CartItem.unit_price_at_add` (column from TK-14) on every add/update; compare against current `Product.price` for drift
 - [ ] `revalidate(cart) -> (lines, issues_by_line, has_blocking_issues)` in order: exists → published → quantity ≤ stock → price drift
 - [ ] Issue codes exactly: `product_unavailable`, `insufficient_stock`, `price_changed`
 - [ ] Response per API.md §4; `unit_price` = **current** product price (OD05), `subtotal` server-computed
@@ -161,6 +164,7 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 ### TK-19 — Order models
 **Needs:** TK-14 · **Files:** `orders/models.py` + migration
 - [ ] `Order`, `OrderItem` (snapshots), `OrderStatusHistory` per SRS §4.7–4.9
+- [ ] `OrderNumberCounter(year PK, last_seq default 1000)` — TK-20's lock target, same migration
 - [ ] DR-09 `unique(customer, idempotency_key)` · DR-10 totals ≥ 0 · DR-11 qty ≥ 1 · DR-12 `line_total = unit_price_snapshot * quantity` · DR-13 `PROTECT` on `OrderItem.product`
 - [ ] IX-01 `(customer,-created_at)`, IX-02 `(seller,status)`, IX-04 `(order,created_at)`; `db_index=False` on covered FKs
 - **DoD:** a hand-written DR-12 violation from `manage.py shell` is rejected by Postgres
@@ -168,8 +172,9 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 
 ### TK-20 — `order_number` generator
 **Needs:** TK-19 · **Files:** `orders/services.py`
-- [ ] `SQ-{YYYY}-{seq}` from 1001/year, `MAX(seq)` under the checkout lock; `unique=True` backstops
-- [ ] `# ponytail: max+1 under the checkout lock; real sequence if multi-writer`
+- [ ] `SQ-{YYYY}-{seq}` from 1001/year via `orders.OrderNumberCounter(year PK, last_seq default 1000)` — **`SELECT ... FOR UPDATE` the row at allocation**; `unique=True` backstops. Model ships in TK-19's migration.
+- [ ] **Not `MAX(seq)+1`** — the checkout's only locks are on `Product` rows, so two checkouts on *different* products both read the same MAX and the loser hits the unique constraint as an uncaught 500 (TK-22 catches `IntegrityError` for DR-09 only)
+- [ ] `# ponytail: one counter row locked per checkout; real Postgres sequence if that row goes hot`
 - **Trace:** SRS §4.7
 
 ### TK-21 — State machine
@@ -187,8 +192,8 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 - [ ] 2. Existing `(customer, key)` order ⇒ **200**, zero side effects
 - [ ] 3. Empty cart ⇒ `400 empty_cart`; missing contact/delivery ⇒ `400 validation_error`
 - [ ] 4. `select_for_update().filter(id__in=...).order_by('id')` — ordered, deadlock-free (BR-04)
-- [ ] 5. `revalidate()` against locked rows ⇒ `409 cart_has_issues`; `acknowledged_issues:["price_changed"]` clears that code only
-- [ ] 6. Shortfall under lock ⇒ `409 insufficient_stock` + `product_id`/`available`
+- [ ] 5. `revalidate()` against locked rows ⇒ `409 cart_has_issues`; an ack is `{code:"price_changed", product_id, new_price}` and clears the issue **only when `new_price` matches the locked row** — a bare code would clear a second, unseen price move (FR-26)
+- [ ] 6. Shortfall under lock ⇒ `409 insufficient_stock` + `product_id`; `available` only under the TK-16 clamp
 - [ ] 7. Totals from locked `Product.price` only — no price/total input fields on the serializer (SEC-03)
 - [ ] 8. Create order + `bulk_create` snapshots + `F()` stock deduct + history `None→pending` + clear cart lines
 - [ ] `IntegrityError` on DR-09 ⇒ re-read and return the original with 200 (BR-06)
@@ -211,6 +216,7 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 **Needs:** TK-21, TK-24 · **Files:** `orders/views.py`
 - [ ] `POST /api/orders/<id>/cancel/` from `pending`/`confirmed` only via `assert_transition(role='customer')`
 - [ ] Calls `restore_stock`, writes history, returns `200 {order_number, status:"cancelled"}`
+- [ ] Check `status == 'cancelled'` **before** `assert_transition` ⇒ `400 already_cancelled`; otherwise that code is unreachable (`(cancelled, cancelled)` isn't in the dict, so it would answer `invalid_transition`)
 - [ ] Errors: `invalid_transition` · `already_cancelled` · 404
 - **Trace:** FR-42/45 · **Tests:** T-16, T-17
 
@@ -220,7 +226,8 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 
 ### TK-26 — Seller product list / create
 **Needs:** TK-13, TK-15 · **Files:** `catalog/views.py`, `serializers.py`, `urls.py`
-- [ ] `IsSeller`; `get_queryset()` filters by `request.user.sellerprofile` — ownership as a **fetch condition** (BR-07/08); admin unscoped
+- [ ] `IsSeller`; `get_queryset()` filters by `request.user.sellerprofile` — ownership as a **fetch condition** (BR-07/08)
+- [ ] **Sellers only.** `request.user.sellerprofile` raises for an admin (no profile, FR-04) and `POST` would have no seller to assign — admin uses `/api/admin/products/<id>/` (TK-32)
 - [ ] `GET` `?status=`, `?search=`, paginated; item shape includes `stock_quantity`, `stock_state`, `image_count`
 - [ ] `POST` always creates `status='draft'` regardless of body
 - [ ] Errors: price < 0, stock < 0, description > 5000, unknown category
@@ -272,6 +279,7 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 - [ ] `GET/PATCH /api/admin/products/<id>/` — `moderation_note` **required** when setting `rejected`
 - [ ] `GET /api/admin/orders/` with `?status=`, `?seller=`, `?date_from=`, `?date_to=`
 - [ ] `GET/PATCH /api/admin/users/<id>/` — suspend flips the flag only; the three effects already exist
+- [ ] When `role='seller'`, mirror `status` onto `SellerProfile.status` in the same transaction — nothing else writes that field, and TK-11's catalog filter reads it
 - **Trace:** FR-56..59
 
 ### TK-33 — Django Admin registration
@@ -301,7 +309,7 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 ### TK-36 — AI endpoints
 **Needs:** TK-35 · **Files:** `ai/{views,serializers,urls}.py`
 - [ ] `POST /ai/suggest-description/`, `/ai/suggest-tags/`, `/ai/moderate/` (advisory only, changes no product field)
-- [ ] Seller/Admin only ⇒ 403 otherwise; throttle scope `ai` 10/hour ⇒ `429 rate_limited`
+- [ ] Seller/Admin only ⇒ 403 otherwise; throttle scope `ai` 10/hour **per `user_id`** (TK-06) ⇒ `429 rate_limited`
 - [ ] AI-07: `category` dropped unless it exactly matches an existing `Category.name`
 - [ ] Every response persisted `review_status='pending'`, never auto-applied
 - **Trace:** FR-61..63/68, AI-07, NFR-08
@@ -309,7 +317,8 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 ### TK-37 — Accept / reject + admin listing
 **Needs:** TK-36 · **Files:** `ai/views.py`, admin viewset
 - [ ] `POST /ai/suggestions/<id>/accept/` writes values onto the product, sets `accepted` + `reviewed_by`; product **stays `draft`** (AI-08)
-- [ ] `POST /ai/suggestions/<id>/reject/`; 400 when already reviewed or no product target, 404 otherwise
+- [ ] Accept is per `suggestion_type`: `description` ⇒ `title→name`, `description→description`; `tags` ⇒ `category→Product.category` on exact `Category.name` match only; `moderation` ⇒ `400` (advisory, no field). `short_description`, `highlights`, `suggested_tags`, `tags` are dropped — no `Tag` entity in MVP
+- [ ] `POST /ai/suggestions/<id>/reject/`; 400 when already reviewed, `moderation` accept, or no product target; 404 otherwise
 - [ ] `GET /api/admin/ai-suggestions/` with `?review_status=`, `?suggestion_type=`
 - [ ] **FR-67 audit:** no AI import anywhere in checkout, stock, permission or transition paths
 - **Trace:** FR-66/67, AI-08 · **Tests:** T-27
@@ -321,6 +330,7 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 ### TK-38 — `seed_demo`
 **Needs:** TK-32 · **Files:** `catalog/management/commands/seed_demo.py`
 - [ ] Idempotent: 4 categories, 3 sellers, 12 published products (one at exactly 5, one at 0), 2 customers, 1 admin
+- [ ] **At least one image per product** — TK-28 refuses to publish without one, so an image-less seed yields an empty catalog. Ship small placeholder files with the command.
 - [ ] Prints known passwords at the end
 - **Trace:** FR-79, DEP-03
 
@@ -329,6 +339,7 @@ Legend: **Needs** = must be merged first · **DoD** = done when · **Trace** = s
 - [ ] Runs on **real PostgreSQL** — SQLite silently no-ops `select_for_update` and check constraints
 - [ ] T-30: two threads, stock 1, real connections — exactly one 201, one 409, final stock 0, never −1
 - [ ] T-13: inject failure after validation, before commit — no order row, stock unchanged
+- [ ] T-09a (cart add ⇒ `400`) **and** T-09b (checkout under lock ⇒ `409`) — same EC01 shortfall at two layers, both required
 - [ ] T-09..14, T-18..24, T-30 never skipped or xfailed
 - **Trace:** SRS §10, FR-80
 

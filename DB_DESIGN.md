@@ -137,6 +137,8 @@ erDiagram
 | R-05 | `AIContentSuggestion.target_id` without FK | Polymorphic soft reference — suggestion may precede product creation (`target_id = null`) |
 | R-06 | `changed_by` with `SET_NULL` | User deletion does not erase order history — audit trail persists |
 
+**Out-of-ERD table — `orders.OrderNumberCounter`:** `year SmallIntegerField(primary_key=True)` · `last_seq IntegerField(default=1000)`. One row per year, `SELECT ... FOR UPDATE`-ed inside the checkout transaction to allocate the next `SQ-{YYYY}-{seq}`. It has no relationship to any entity, so it stays out of the ERD — but it is real schema and must exist in the same migration as `Order`. It exists because `MAX(order_number)+1` is **not** safe: the checkout transaction locks only `Product` rows, so two checkouts on different products read the same max and the loser hits `unique=True` as an uncaught `IntegrityError`. The counter row is the lock that serializes numbering.
+
 ---
 
 ## 2. Normalization

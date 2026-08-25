@@ -207,6 +207,7 @@ docker-compose.yml  .env.example  docs/plans/
 
 - `Order`: `order_number CharField(20) unique`, `customer FK(User, PROTECT, db_index=False)`, `seller FK(SellerProfile, PROTECT, db_index=False)`, `status` default `pending`, `subtotal`/`total Decimal(12,2)`, `contact_name CharField`, `contact_phone CharField`, `delivery_address TextField`, `idempotency_key UUIDField`, `stock_restored Boolean default False`, `created_at`.
 - `OrderItem`: `order FK(CASCADE, related_name='items')`, `product FK(Product, PROTECT)`, `product_name_snapshot CharField(160)`, `unit_price_snapshot Decimal(10,2)`, `quantity`, `line_total Decimal(12,2)`.
+- `OrderNumberCounter`: `year SmallIntegerField(primary_key=True)`, `last_seq IntegerField(default=1000)` — ships here so P20 has its lock target from day one.
 - `OrderStatusHistory`: `order FK(CASCADE, db_index=False)`, `from_status CharField(16, null=True)`, `to_status CharField(16)`, `changed_by FK(User, SET_NULL, null=True)`, `created_at`.
 - Constraints: **DR-09** `unique(customer, idempotency_key)` · **DR-10** `subtotal >= 0 AND total >= 0` · **DR-11** `quantity >= 1` · **DR-12** `line_total = unit_price_snapshot * quantity` · **DR-13** `PROTECT` on `OrderItem.product`.
 - Indexes: **IX-01** `(customer, -created_at)` · **IX-02** `(seller, status)` · **IX-04** `(order, created_at)` — with `db_index=False` on the three FKs those prefixes cover.
@@ -216,7 +217,7 @@ docker-compose.yml  .env.example  docs/plans/
 ### P20 — `order_number` generator
 **Files:** `api/orders/services.py`
 
-- Format `SQ-{YYYY}-{seq}` starting at 1001 per year. Implementation: a dedicated counter row per year, `SELECT ... FOR UPDATE`-ed at allocation time. Uniqueness is backstopped by `unique=True` on the column.
+- Format `SQ-{YYYY}-{seq}` starting at 1001 per year. Implementation: `orders.OrderNumberCounter(year PK, last_seq default 1000)` (DB_DESIGN §1), one row per year, `SELECT ... FOR UPDATE`-ed at allocation time. The model ships in P19's migration alongside `Order`. Uniqueness is backstopped by `unique=True` on the column.
 - **Not `MAX(seq)+1`.** The checkout transaction's only locks are on `Product` rows; two concurrent checkouts on *different* products share no lock, both read the same `MAX`, and the loser hits the unique constraint. P22 catches `IntegrityError` for DR-09 only, so that collision would surface as a 500 on an otherwise valid order. The counter row is the lock that actually serializes numbering.
 - `# ponytail: one counter row locked per checkout; swap to a real Postgres sequence if order throughput ever makes that row hot`
 - **Trace:** SRS §4.7, API.md §5.
