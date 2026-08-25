@@ -363,7 +363,7 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 **Files:** `api/ai/views.py`, `serializers.py`, `urls.py`
 
 - `POST /ai/suggest-description/` `{name, category_id, attributes, notes}` · `POST /ai/suggest-tags/` `{title, description}` · `POST /ai/moderate/` `{product_id}` (note types `missing_info|suspicious_claims|inappropriate_terms`, advisory only — no product field changes).
-- Seller/Admin only ⇒ 403 for customer/guest. Throttle scope `ai` at 10/hour per seller ⇒ `429 rate_limited`.
+- Seller/Admin only ⇒ 403 for customer/guest. Throttle scope `ai` at 10/hour keyed on `user_id` (P06) ⇒ `429 rate_limited`.
 - `suggest-tags`: **AI-07** — `category` is dropped unless it matches an existing `Category.name` exactly. The API never invents a category.
 - Every response is persisted as a suggestion with `review_status='pending'` and is never auto-applied.
 - **Trace:** FR-61..63/68, AI-07, NFR-08, API.md §9.
@@ -372,6 +372,7 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 **Files:** `api/ai/views.py`, admin viewset
 
 - `POST /ai/suggestions/<id>/accept/` — explicit human action: writes suggested values onto the target product, sets `review_status='accepted'` + `reviewed_by`. The product **stays `draft`** (AI-08). Returns `{suggestion_id, review_status, product_id, product_status}`.
+- Accept is defined **per `suggestion_type`** (API.md §9): `description` ⇒ `title → name`, `description → description`; `tags` ⇒ `category → Product.category` only on an exact `Category.name` match (AI-07); `moderation` ⇒ `400 validation_error`, it is advisory and maps to no field. Fields with no MVP home (`short_description`, `highlights`, `suggested_tags`, `tags`) are dropped — there is no `Tag` entity.
 - `POST /ai/suggestions/<id>/reject/` → `{suggestion_id, review_status:"rejected"}`.
 - **Errors:** `400 validation_error` (already reviewed, or no product target) · `404`.
 - `GET /api/admin/ai-suggestions/` — `?review_status=`, `?suggestion_type=`, paginated.
@@ -386,6 +387,7 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 **Files:** `api/catalog/management/commands/seed_demo.py`
 
 - Idempotent (safe to re-run): 4 categories, 3 sellers, 12 published products with varied stock **including one at exactly 5 and one at 0**, 2 customers, 1 admin. Known passwords printed at the end for the demo.
+- Each product gets **at least one image** — P28 refuses to publish without one, so an image-less seed yields an empty catalog. Ship a handful of small placeholder files with the command.
 - **Trace:** FR-79, DEP-03.
 
 ### P39 — Test matrix T-01..T-30
@@ -394,6 +396,7 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 - Fill every gap. Runs on **real PostgreSQL** — `select_for_update` and `CheckConstraint` are no-ops or absent on SQLite, so SQLite would silently pass the tests that matter most (SRS §10.2).
 - **T-30 concurrency:** two threads, stock = 1, real connections (`TransactionTestCase` / `pytest.mark.django_db(transaction=True)`) — exactly one 201, one 409, final stock 0, never −1.
 - **T-13:** inject a failure after validation and before commit; assert no order row and unchanged stock.
+- **T-09a/T-09b:** the same EC01 shortfall at two layers — cart add ⇒ `400`, checkout under lock ⇒ `409`. Both required; asserting only one hides a status-code regression in the other.
 - T-09..T-14, T-18..T-24 and T-30 may never be skipped or xfailed.
 - **Trace:** SRS §10, FR-80.
 
