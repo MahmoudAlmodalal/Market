@@ -78,6 +78,7 @@ erDiagram
         bigint cart_id FK "CASCADE"
         bigint product_id FK "CASCADE"
         int quantity "DR-08 >= 1"
+        decimal unit_price_at_add "10,2 — drift reference for FR-26"
     }
     ORDER {
         bigint id PK
@@ -150,7 +151,7 @@ erDiagram
 | `Product` | ✅ | ✅ | ✅ | ✅ | All attributes depend on `id` alone |
 | `ProductImage` | ✅ | ✅ | ✅ | ✅ | `(product_id, sort_order)` is candidate key (DR-06) |
 | `Cart` | ✅ | ✅ | ✅ | ✅ | Lightweight relationship table |
-| `CartItem` | ✅ | ✅ | ✅ | ✅ | `(cart_id, product_id)` is candidate key (DR-07) — `quantity` fully depends on it |
+| `CartItem` | ✅ | ✅ | ✅ | ✅ | `(cart_id, product_id)` is candidate key (DR-07) — `quantity` fully depends on it. `unit_price_at_add` is a point-in-time snapshot, not a copy of `Product.price` — see N-09 |
 | `Order` | ✅ | ✅ | ⚠️ | ⚠️ | Intentional denormalization — §2.2 |
 | `OrderItem` | ✅ | ✅ | ⚠️ | ⚠️ | Snapshots + derived fields — §2.2 |
 | `OrderStatusHistory` | ✅ | ✅ | ✅ | ✅ | Append-only, no updates |
@@ -176,6 +177,7 @@ These are not defects — each is an explicit SRS requirement, each guarded by a
 | N-06 | `Order.seller` | Derived from `items[].product.seller` | Single-seller cart (OD04) makes it invariant across order; storing it converts seller lookup (FR-52) from 3-way JOIN to single-column filter | Derived once from cart at creation time |
 | N-07 | `Order.contact_name / contact_phone / delivery_address` | Copies of user data | Address at order time ≠ current address (FR-35) | Text snapshot, no FK |
 | N-08 | `Order.stock_restored` | Procedural flag | Prevents duplicate stock restoration on repeated cancellation (FR-42, T-17) | Flipped within same cancellation transaction |
+| N-09 | `CartItem.unit_price_at_add` | Snapshot of `product_id → price` | **Price drift is undetectable without it** — FR-25/26 must compare the price the customer saw against the current one, and nothing else in the schema records the former | Never read for money: every total comes from `Product.price` under `SELECT … FOR UPDATE` (FR-30). Rewritten on every add/update |
 
 **Governing Rule:** Any denormalization in this schema is either (a) a historical snapshot that must not track the source, or (b) a derived field constrained by `CheckConstraint`. No field is duplicated "for speed only" without a guard.
 
@@ -205,6 +207,8 @@ Django/PostgreSQL create these implicitly — **adding them manually = redundant
 | `Category` | `name`, `slug` (UNIQUE) | `unique=True` |
 | `Order` | `order_number` (UNIQUE) | `unique=True` |
 
+> **The one deliberate exception to "no redundant indexes":** `User` carries both a plain B-tree on `email` (`unique=True`) and the functional `UNIQUE(LOWER(email))` of DR-01. They are different indexes serving different predicates — the functional one cannot answer `WHERE email = ?` and the plain one cannot enforce case-folded uniqueness. Both are required; this is not an oversight.
+
 ### 3.2 SRS-Mandated Indexes
 
 Uniqueness constraints also serve as queryable indexes:
@@ -227,6 +231,8 @@ Each is tied to an actual API query — no speculative indexes:
 | IX-02 | `Order (seller_id, status)` | `GET /api/seller/orders/?status=` + dashboard counters | FR-52, FR-54 |
 | IX-03 | `Product (seller_id, status)` | `GET /api/seller/products/` (queryset filtered by owner) + catalog filter `?seller=` | FR-50, FR-11 |
 | IX-04 | `OrderStatusHistory (order_id, created_at)` | Order timeline ordered | FR-48 |
+
+> **Known cost — the catalog's suspension filter.** FR-59 hides a suspended seller's products, which makes `GET /api/products/` a two-level join (`Product → SellerProfile → User`) that DR-04's `(status, -created_at)` does not cover, against NFR-01's 500 ms p95 budget. Mitigation for MVP: `SellerProfile.status` is mirrored from `User.status` on suspend (FR-59), so the filter needs only `Product → SellerProfile` — one join, served by the automatic FK index. `# ponytail: one join; denormalize a seller_active flag onto Product only if the catalog query actually misses its p95`
 
 > **Avoid Duplication:** Each `IX-*` index starts with an FK column that has automatic indexing in §3.1 — the composite prefix covers the same lookup, making the automatic index redundant. When adding `IX-01..IX-04`, set `db_index=False` on corresponding FK fields (`Order.customer`, `Order.seller`, `Product.seller`, `OrderStatusHistory.order`).
 

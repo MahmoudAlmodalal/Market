@@ -54,7 +54,7 @@ Every non-2xx response uses one shape:
 | `invalid_credentials` | 401 | `/auth/login/` |
 | `account_suspended` | 401 | login + every authenticated request (SEC-10) |
 | `invalid_quantity` | 400 | cart |
-| `insufficient_stock` | 400 / 409 | cart / checkout |
+| `insufficient_stock` | 400 cart · 409 checkout | `400` on cart add/update (client-fixable input). `409` on checkout, where stock dropped under lock (state conflict). Same code, two layers — never both in one call. |
 | `product_not_purchasable` | 400 | cart |
 | `multi_seller_cart` | 409 | cart |
 | `empty_cart` | 400 | checkout |
@@ -84,7 +84,7 @@ All list endpoints:
 |---|---|
 | Authenticated user | 100 req/min |
 | Anonymous IP | 30 req/min |
-| AI endpoints per seller | 10 req/hour |
+| AI endpoints | 10 req/hour **per user** (seller or admin) |
 
 ### 1.7 Computed Fields
 
@@ -284,9 +284,11 @@ Any issue blocks checkout until acknowledged (`price_changed`) or resolved (the 
 | Code | HTTP | When |
 |---|:-:|---|
 | `invalid_quantity` | 400 | `quantity < 1` |
-| `insufficient_stock` | 400 | `quantity > stock_quantity`; `details.available` |
+| `insufficient_stock` | 400 | `quantity > stock_quantity`; `details.available` — see clamp below |
 | `product_not_purchasable` | 400 | product not `published` |
 | `multi_seller_cart` | 409 | product's seller ≠ cart's seller; `details.current_seller` |
+
+> **`details.available` is clamped.** It is returned only when `stock_quantity <= LOW_STOCK_THRESHOLD`; above the threshold the key is omitted and the message reads "Not enough stock." Otherwise any caller could request `quantity: 99999` and read back the exact inventory that §3 deliberately hides (FR-16). The same clamp applies to the `insufficient_stock` issue in `GET /api/cart/` and to the checkout `409`.
 
 Resolve `multi_seller_cart` by calling `DELETE /api/cart/` then re-adding.
 
@@ -316,9 +318,15 @@ Resolve `multi_seller_cart` by calling `DELETE /api/cart/` then re-adding.
   "contact_name": "Omar Nasser",
   "contact_phone": "+970591234567",
   "delivery_address": "12 Al-Bahr St, Gaza",
-  "acknowledged_issues": ["price_changed"]
+  "acknowledged_issues": [
+    { "code": "price_changed", "product_id": 44, "new_price": "30.00" }
+  ]
 }
 ```
+
+An acknowledgement binds to a **specific product at a specific price** — the price the customer actually saw. At checkout each ack is matched against the locked product row; if the price moved again in between, the ack no longer matches and the request fails with `409 cart_has_issues` carrying the new price. A bare code (`["price_changed"]`) is **not** accepted — it would let an order commit at a price the customer never saw (FR-26, OD05).
+
+Only `price_changed` is acknowledgeable. `product_unavailable` and `insufficient_stock` must be resolved, never acknowledged.
 
 Any `price`, `total`, or `line_total` in the body is **never read**. Totals come from the DB under row locks.
 
@@ -452,9 +460,11 @@ pending → confirmed → preparing → ready → completed
 
 ---
 
-## 7. Seller — role `seller` (Admin has same access, unscoped)
+## 7. Seller — role `seller` only
 
 All seller endpoints are ownership-scoped at the queryset level: another seller's resource returns `404`, never `403`.
+
+> **Admin does not use these endpoints.** They are scoped to `request.user.sellerprofile`, which an admin account does not have (`SellerProfile` exists only for `role=seller` — FR-04), and `POST /seller/products/` has no seller to assign. Admin reads and edits any product through `/api/admin/products/<id>/` (§8).
 
 ### `GET /api/seller/products/`
 
@@ -642,6 +652,8 @@ All orders. Filters: `?status=` · `?seller=<id>` · `?date_from=YYYY-MM-DD` · 
 
 Suspending blocks login, rejects the user's existing tokens on the next request, and hides their products from the catalog.
 
+When the target has `role = "seller"`, the same call also mirrors `status` onto their `SellerProfile` in the same transaction — that field has no endpoint of its own and would otherwise never be written.
+
 ### `GET /api/admin/ai-suggestions/`
 
 Filters: `?review_status=pending|accepted|rejected` · `?suggestion_type=` · pagination.
@@ -652,7 +664,7 @@ Filters: `?review_status=pending|accepted|rejected` · `?suggestion_type=` · pa
 
 Every AI response is stored as an `AIContentSuggestion` with `review_status: "pending"` and is **never** auto-applied. AI is never involved in pricing, stock, totals, permissions, or state transitions.
 
-**Shared errors:** `403` (customer/guest) · `429 rate_limited` (10/hour per seller) · `503 ai_unavailable` (provider error or > 10s timeout — no side effects).
+**Shared errors:** `403` (customer/guest) · `429 rate_limited` (10/hour per user — admins have no seller profile to key on) · `503 ai_unavailable` (provider error or > 10s timeout — no side effects).
 
 ### `POST /api/ai/suggest-description/`
 
@@ -750,12 +762,20 @@ Note types: `missing_info` · `suspicious_claims` · `inappropriate_terms`. Advi
 
 Explicit human action. Writes the suggested values onto the product and records the reviewer. The product **stays `draft`** — publishing remains a separate call (§7).
 
+What "writes the values" means depends on `suggestion_type`:
+
+| `suggestion_type` | Accept writes |
+|---|---|
+| `description` | `output.title` → `Product.name`, `output.description` → `Product.description`. `short_description`, `highlights`, `suggested_tags` are **not** stored — no field holds them in MVP (no `Tag` entity, DB_DESIGN §2.1). |
+| `tags` | `output.category` → `Product.category`, and only when it matches an existing `Category.name` exactly (AI-07). `output.tags` are **not** stored — same reason. |
+| `moderation` | **Not acceptable.** Moderation output is advisory and maps to no product field ⇒ `400 validation_error`. Use `/reject/` to close it out. |
+
 **200**
 ```json
 { "suggestion_id": 55, "review_status": "accepted", "product_id": 41, "product_status": "draft" }
 ```
 
-**Errors:** `400 validation_error` (already reviewed, or suggestion has no product target) · `404`.
+**Errors:** `400 validation_error` (already reviewed, `suggestion_type = "moderation"`, or suggestion has no product target) · `404`.
 
 ### `POST /api/ai/suggestions/<id>/reject/`
 

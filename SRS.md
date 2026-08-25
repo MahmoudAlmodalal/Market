@@ -131,13 +131,13 @@ Priority: **M** = Must (P0), **S** = Should (P1).
 | FR-17 | One active cart per Customer (`OneToOne`), created on first add. **No guest cart.** | M | OD02 |
 | FR-18 | `POST /api/cart/items/` with `{product_id, quantity}`. If product exists in cart, quantity is replaced with new value (replace semantics, not add). | M | F03 |
 | FR-19 | Rejects `quantity < 1` with `400`. | M | AC §10 |
-| FR-20 | Rejects `quantity > stock_quantity` with `400` and `{code: "insufficient_stock", available: N}`. | M | EC01 |
+| FR-20 | Rejects `quantity > stock_quantity` with `400` and `{code: "insufficient_stock"}`. `available: N` is included **only** when `stock_quantity <= LOW_STOCK_THRESHOLD` — above the threshold exact stock stays hidden (FR-16), otherwise any caller could read it back by requesting an absurd quantity. Cart = `400`; the same shortfall found under lock at checkout = `409` (FR-37). | M | EC01 |
 | FR-21 | Rejects adding unpublished product with `400`. | M | F03 |
 | FR-22 | **Single-seller cart:** Adding product from different seller than cart contents rejects with `409 {code: "multi_seller_cart"}` with option to clear cart. | M | OD04 |
 | FR-23 | `PATCH /api/cart/items/<id>/` to modify quantity, `DELETE` to remove, `DELETE /api/cart/` to clear. | M | F03 |
 | FR-24 | `GET /api/cart/` returns per line: current `unit_price`, `line_total`, `stock_state`, and `issues[]` list. `subtotal` computed on server. | M | F03 |
 | FR-25 | **Cart revalidation:** Each cart read re-validates: product exists, `published` status, quantity available, price change since add. Any fault shows as explicit `issue` and blocks Checkout. | M | EC03, EC07 |
-| FR-26 | Price change after add: server's current price is used, `price_changed` issue shown with `old_price`/`new_price`, client must acknowledge before Checkout. | M | OD05, EC07 |
+| FR-26 | Price change after add: server's current price is used, `price_changed` issue shown with `old_price`/`new_price`, client must acknowledge before Checkout. The acknowledgement carries the **product id and the exact price the customer saw** (`{code, product_id, new_price}`), and is re-matched against the locked row at checkout. A bare `"price_changed"` code is rejected — it would clear an issue raised by a *second* price move the customer never saw. Drift detected via `CartItem.unit_price_at_add` (§4.6). | M | OD05, EC07 |
 
 ### 3.5 Checkout & Order Creation — F04, F05 / US-C05
 
@@ -180,7 +180,7 @@ Priority: **M** = Must (P0), **S** = Should (P1).
 
 | ID | Requirement | Pri | Trace |
 |---|---|:-:|---|
-| FR-49 | `POST /api/seller/products/` creates product with `draft` status; seller publishes explicitly via `POST .../publish/`. | M | OD07 |
+| FR-49 | `POST /api/seller/products/` creates product with `draft` status; seller publishes explicitly via `POST .../publish/`. Publishing requires **at least one image**; a product with no images, or with status `rejected`/`archived`, is rejected with `400`. | M | OD07 |
 | FR-50 | Seller can read/edit/delete only their products. Queryset filtered by `seller=request.user.sellerprofile` — no reliance on single view check. | M | §11.7, EC04 |
 | FR-51 | Deletion is soft delete (`status = archived`); product linked to orders is never actually deleted. | M | §11.4 |
 | FR-52 | `GET /api/seller/orders/` returns orders for this seller's products only, without customer personal data except `contact_name`, `contact_phone`, `delivery_address`. | M | F07, §16 |
@@ -195,7 +195,7 @@ Priority: **M** = Must (P0), **S** = Should (P1).
 | FR-56 | `GET /api/admin/metrics/` returns: total orders, total sales, published product count, active seller count, orders by status. | S | F08 |
 | FR-57 | Admin reads and edits any product, can transition to `rejected` with mandatory `moderation_note`. | S | F08 |
 | FR-58 | `GET /api/admin/orders/` returns all orders with filtering by status/seller/date. | S | US-A02 |
-| FR-59 | Admin can disable user (`status = suspended`); disabled user fails login and products are hidden from catalog. | S | F08 |
+| FR-59 | Admin can disable user (`status = suspended`); disabled user fails login and products are hidden from catalog. When the user's role is `seller`, the same operation mirrors `status` onto their `SellerProfile` in the same transaction — that field has no endpoint of its own. | S | F08 |
 | FR-60 | Built-in Django Admin used as backup admin interface only, not counted as implementation of FR-56..59. | S | — |
 
 > **ponytail:** `# ponytail: admin metrics = live COUNT/SUM queries; add materialized view if orders exceed ~100k`
@@ -207,11 +207,11 @@ Priority: **M** = Must (P0), **S** = Should (P1).
 | FR-61 | `POST /api/ai/suggest-description/` with `{name, category_id, attributes, notes}` returns schema in §7.1. Available to Seller/Admin only. | S | §12.1 |
 | FR-62 | `POST /api/ai/suggest-tags/` with `{title, description}` returns schema in §7.2. | S | §12.2 |
 | FR-63 | `POST /api/ai/moderate/` returns list of review notes on product (`missing_info`, `suspicious_claims`, `inappropriate_terms`). | S | §12.3 |
-| FR-64 | Each AI output stored in `AIContentSuggestion` with `review_status = pending` and never auto-applied to product. | S | §12.5, US-A03 |
+| FR-64 | Each AI output that passes validation is stored in `AIContentSuggestion` with `review_status = pending` and never auto-applied to product. Outputs failing validation take the `rejected` path in FR-65. | S | §12.5, US-A03 |
 | FR-65 | AI output fails schema validation or `confidence < 0.5` ⇒ `review_status = rejected` and returned to client as `{status: "needs_regeneration"}`. Not shown as valid suggestion. | S | §12.5 |
-| FR-66 | Suggestion application done by explicit human action: `POST /api/ai/suggestions/<id>/accept/` — writes values to product and sets `review_status = accepted` and `reviewed_by`. | S | US-A03 |
+| FR-66 | Suggestion application done by explicit human action: `POST /api/ai/suggestions/<id>/accept/` — writes values to product and sets `review_status = accepted` and `reviewed_by`. Which values, per `suggestion_type`: `description` ⇒ `title → Product.name`, `description → Product.description`; `tags` ⇒ `category → Product.category` only when it matches an existing `Category.name` (AI-07); `moderation` ⇒ **not acceptable**, advisory only, `400`. Fields with no MVP home (`short_description`, `highlights`, `suggested_tags`, `tags`) are not stored — there is no `Tag` entity. | S | US-A03 |
 | FR-67 | AI **never called** in paths: price calculation, inventory, order total, permissions, ownership, state transitions. | M | §12.4 |
-| FR-68 | Rate limit: 10 AI requests per seller per hour. | S | NFR-08 |
+| FR-68 | Rate limit: 10 AI requests per **user** per hour. Keyed on `user_id`, not seller profile — FR-61 grants AI access to Admin too, and Admin has no `SellerProfile`. | S | NFR-08 |
 | FR-69 | AI provider failure/timeout (>10s) ⇒ `503 {code: "ai_unavailable"}` without affecting any other function. | S | NFR-09 |
 
 ### 3.11 Frontend Requirements (Next.js)
@@ -232,7 +232,7 @@ Priority: **M** = Must (P0), **S** = Should (P1).
 
 | ID | Requirement | Pri | Trace |
 |---|---|:-:|---|
-| FR-79 | Command `python manage.py seed_demo` creates: 3 sellers, 12 products, 4 categories, 2 customers, admin, with varied stock states (one at 5, one at 0). | M | F10 |
+| FR-79 | Command `python manage.py seed_demo` creates: 3 sellers, 12 products, 4 categories, 2 customers, admin, with varied stock states (one at 5, one at 0). Each seeded product gets **at least one image** — publishing requires it (FR-49), so an image-less seed cannot produce a published catalog. | M | F10 |
 | FR-80 | Test coverage mandatory per matrix §9. | M | F10 |
 | FR-81 | Docker Compose with three services: `db` (postgres:16), `api` (django + gunicorn), `web` (next). | M | F10 |
 
@@ -292,7 +292,9 @@ Each table below is a Django model. `id` = `BigAutoField` unless stated otherwis
 ### 4.6 `orders.Cart` / `orders.CartItem`
 
 **Cart:** `customer OneToOneField(User, CASCADE)`
-**CartItem:** `cart FK(Cart, CASCADE)` · `product FK(Product, CASCADE)` · `quantity PositiveIntegerField`
+**CartItem:** `cart FK(Cart, CASCADE)` · `product FK(Product, CASCADE)` · `quantity PositiveIntegerField` · `unit_price_at_add DecimalField(10,2)`
+
+`unit_price_at_add` is written on every add/update and exists **solely** to detect price drift for FR-25/26 — without it `price_changed` cannot be computed at all. It is never a source of truth for money: totals always come from `Product.price` under lock (FR-30).
 
 **DR-07:** `UniqueConstraint(cart, product, name='uniq_cart_product')` — makes FR-18 structurally correct
 **DR-08:** `CheckConstraint(quantity >= 1, name='cartitem_qty_min')`
@@ -543,12 +545,12 @@ Seller requests → AIContentSuggestion(pending) → Seller previews
 | NFR-04 | Each list query uses appropriate index (DR-04). |
 | NFR-05 | Structured logging (JSON) for: checkout failure, unauthorized access, stock validation failure, invalid transition, AI failure — with fields `event, user_id, resource_id, reason`. |
 | NFR-06 | Health endpoint `GET /api/health/` checks DB connection. |
-| NFR-07 | General rate limit: 100 req/min per authenticated user, 30 req/min per unauthenticated IP (DRF throttling). |
-| NFR-08 | AI-specific rate limit: 10/hour per seller. |
+| NFR-07 | General rate limit: 100 req/min per authenticated user, 30 req/min per unauthenticated IP (DRF throttling). **The public catalog (`/products/`, `/categories/`, `/health/`) is exempt from the anonymous throttle.** AD-05 makes catalog pages a server-side Next.js `fetch`, so every public request reaches Django from one origin IP — a 30/min IP throttle would cap the entire site's browsing traffic at 30 req/min. Protect those routes with per-client-IP limits derived from a trusted forwarded header, or at the edge, not with `AnonRateThrottle`. |
+| NFR-08 | AI-specific rate limit: 10/hour per user (FR-68). |
 | NFR-09 | AI provider failure doesn't break any P0 function. |
 | NFR-10 | Design assumes no fixed seller/product count; no hardcoded limits in code. |
 | NFR-11 | All user-facing text in frontend in English, API codes in English. |
-| NFR-12 | Full LTR support in frontend (`dir="ltr"` at layout level). |
+| NFR-12 | Text direction set explicitly at layout level (`<html lang="en" dir="ltr">`) rather than left to the browser default, so a future locale change is a one-attribute edit. No RTL layout work in MVP. |
 
 ---
 
@@ -583,8 +585,9 @@ Seller requests → AIContentSuggestion(pending) → Seller previews
 | T-06 | Integration | Add same product again with qty 3 | one line with qty 3 (replace) | FR-18, DR-07 |
 | T-07 | Integration | Add product from different seller | `409 multi_seller_cart` | FR-22 |
 | T-08 | Integration | Successful checkout: stock 5, qty 2 | Order + stock = 3 | Demo |
-| T-09 | Integration | **EC01** qty 4 stock 3 | `409`, no Order, stock stays 3 | EC01 |
-| T-10 | Integration | **EC02** buy product stock = 0 | rejected in cart and checkout | EC02 |
+| T-09a | Integration | **EC01** cart: add qty 4, stock 3 | `400 insufficient_stock`, line not written (FR-20) | EC01 |
+| T-09b | Integration | **EC01** checkout: stock drops to 3 after a qty-4 line was written | `409 insufficient_stock`, no Order, stock stays 3 (FR-37) | EC01 |
+| T-10 | Integration | **EC02** buy product stock = 0 | rejected in cart (`400`) and checkout (`409`) | EC02 |
 | T-11 | Integration | **EC03** edit stock to 1 after adding 2 to cart | `GET /cart/` shows issue, checkout `409` | EC03 |
 | T-12 | Integration | **EC05** call checkout twice with same `Idempotency-Key` | one Order only, second `200` with same `order_number` | EC05, DR-09 |
 | T-13 | Integration | **EC06** inject failure after verify, before commit | no Order, stock unchanged | EC06 |
@@ -608,7 +611,7 @@ Seller requests → AIContentSuggestion(pending) → Seller previews
 
 ### 10.2 Test Acceptance Criteria
 
-* T-01..T-30 all green required for Definition of Done.
+* T-01..T-30 all green required for Definition of Done (T-09 counts as two cases, T-09a and T-09b — both required).
 * T-09..T-14 and T-18..T-24 and T-30 **must not be disabled or skipped** under any circumstance.
 * Tests run on real PostgreSQL (not SQLite) — `select_for_update` and `CheckConstraint` not truly tested on SQLite.
 
