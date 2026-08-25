@@ -10,7 +10,7 @@
 
 The repo holds only specifications — no code. All three documents are approved and closed (SRS Appendix A settles OD01..OD10; DB_DESIGN is documentation of a fixed schema, not a proposal). What is missing is an execution order.
 
-This plan splits the backend into **38 small phases**. Each phase is one sitting, touches few files, ends in something runnable, and names the exact `FR-`/`DR-`/`SEC-`/`T-` IDs it discharges. Order is dependency-driven: constraints ship with their model, shared helpers ship before their callers, and nothing is retrofitted.
+This plan splits the backend into **41 small phases** (P01–P41). Each phase is one sitting, touches few files, ends in something runnable, and names the exact `FR-`/`DR-`/`SEC-`/`T-` IDs it discharges. Order is dependency-driven: constraints ship with their model, shared helpers ship before their callers, and nothing is retrofitted.
 
 **Per-phase docs:** when a phase starts, write `docs/plans/phase-NN-<slug>.md` — self-contained (goal, files, contract excerpt from `API.md`, DoD, trace IDs) so it can be executed without re-reading all three specs.
 
@@ -46,7 +46,8 @@ docker-compose.yml  .env.example  docs/plans/
 - Env-driven config only: `DATABASE_URL`, `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ORIGINS`, `AI_PROVIDER_KEY`, `LOW_STOCK_THRESHOLD` (default 5).
 - `REST_FRAMEWORK`: `DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]` (public views opt out explicitly — SEC-01), `DEFAULT_AUTHENTICATION_CLASSES` = simplejwt, custom `EXCEPTION_HANDLER` (P02), `DEFAULT_PAGINATION_CLASS` = `common.pagination.StandardPagination` (`page_size=20`, `page_size_query_param='page_size'`, `max_page_size=100`).
 - CORS limited to `CORS_ORIGINS`; `CSRF_TRUSTED_ORIGINS` set. `DEBUG=False` unless env says otherwise.
-- Compose services `db` (postgres:16 + named volume + healthcheck) and `api`; `web` added in P38.
+- Compose services `db` (postgres:16 + named volume + healthcheck) and `api`; the `web` slot is reserved in P41 and filled by the frontend, which is out of scope for this plan.
+- **Throttle exemption (NFR-07):** `/api/products/`, `/api/categories/`, `/api/health/` opt out of `AnonRateThrottle`. AD-05 routes the whole public catalog through one Next.js server IP, so a 30/min per-IP limit would throttle the entire site. Per-client limits on those routes, if wanted later, come from a trusted forwarded header or the edge — never from the raw peer IP.
 - **DoD:** `docker compose run --rm api python manage.py check` exits 0.
 - **Trace:** DEP-01/02, SEC-01/06/08, FR-12, NFR-07 (config only).
 
@@ -90,7 +91,7 @@ docker-compose.yml  .env.example  docs/plans/
 **Files:** `api/accounts/authentication.py`, settings
 
 - `SuspendedAwareJWTAuthentication(JWTAuthentication)`: after resolving the user, raise `AuthenticationFailed(code=account_suspended)` when `user.status == 'suspended'` — so an already-issued token dies on the next request, no logout needed (SEC-10). Set as the default auth class.
-- Throttles: `UserRateThrottle` 100/min, `AnonRateThrottle` 30/min, plus a named scope `ai` at `10/hour` reserved for P33.
+- Throttles: `UserRateThrottle` 100/min, `AnonRateThrottle` 30/min (public catalog exempt — P01), plus a named scope `ai` at `10/hour` **keyed on `user_id`**, consumed by the AI endpoints in P36. Not keyed on seller profile: FR-61 grants AI to admins, who have none.
 - **DoD:** T-24 — a suspended user gets 401 on every authenticated endpoint.
 - **Trace:** SEC-10, FR-59 (login/token half), NFR-07/08, API.md §1.6. Tests: T-24.
 
@@ -132,7 +133,7 @@ docker-compose.yml  .env.example  docs/plans/
 ### P11 — Public catalog list
 **Files:** `api/catalog/views.py`, `serializers.py`
 
-- `GET /api/products/` — `AllowAny`, paginated. Base queryset: `status='published'` **and** seller not suspended **and** seller's user not suspended (FR-59's second half), `select_related('seller','category')`, `prefetch_related` images for `primary_image` (lowest `sort_order`).
+- `GET /api/products/` — `AllowAny`, paginated. Base queryset: `status='published'` **and** `seller__status='active'` — one join, not two: P32 mirrors `User.status` onto `SellerProfile.status` on suspend, so the seller profile alone answers FR-59 (DB_DESIGN §3.3). `select_related('seller','category')`, `prefetch_related` images for `primary_image` (lowest `sort_order`).
 - Item shape (API.md §3): `{id, name, price, primary_image, stock_state, seller_name, category:{id,name}}`. `stock_quantity` is never exposed publicly.
 - **DoD:** no N+1 — assert query count is constant across page sizes.
 - **Trace:** FR-07/08/13, FR-59, NFR-01/04, DR-04.
@@ -159,7 +160,8 @@ docker-compose.yml  .env.example  docs/plans/
 ### P14 — `Cart` / `CartItem` models
 **Files:** `api/orders/models.py`, migration
 
-- `Cart.customer OneToOne(User, CASCADE)`. `CartItem.cart FK(CASCADE, related_name='items')`, `product FK(Product, CASCADE)`, `quantity PositiveIntegerField`, `created_at` (needed for stable line ordering).
+- `Cart.customer OneToOne(User, CASCADE)`. `CartItem.cart FK(CASCADE, related_name='items')`, `product FK(Product, CASCADE)`, `quantity PositiveIntegerField`, `unit_price_at_add Decimal(10,2)`, `created_at` (needed for stable line ordering).
+- `unit_price_at_add` ships **with the model, not later** — FR-25/26 cannot detect price drift without it, and it is the reference P18 compares against. Written on every add/update; never read for money (N-09).
 - **DR-07** `UniqueConstraint(cart, product)` — makes replace-semantics structural. **DR-08** `quantity >= 1`.
 - **Trace:** SRS §4.6, DR-07/08, OD02.
 
@@ -176,7 +178,8 @@ docker-compose.yml  .env.example  docs/plans/
 - `POST /api/cart/items/` `{product_id, quantity}` → **replace** semantics via `update_or_create` (FR-18: quantity is *set*, not summed). `PATCH /api/cart/items/<id>/` `{quantity}`. `DELETE /api/cart/items/<id>/` → 204. `DELETE /api/cart/` → 204 (clears lines, keeps the cart row).
 - Item lookup is always scoped `cart__customer=request.user` — foreign item ⇒ 404.
 - Both POST and PATCH return the **full cart body** (same shape as `GET /api/cart/`), POST with 201.
-- **Errors:** `400 invalid_quantity` (< 1) · `400 insufficient_stock` + `details.available` · `400 product_not_purchasable` (status ≠ published).
+- **Errors:** `400 invalid_quantity` (< 1) · `400 insufficient_stock` · `400 product_not_purchasable` (status ≠ published).
+- `details.available` is included **only** when `stock_quantity <= LOW_STOCK_THRESHOLD`. Unclamped it is a stock oracle: `quantity: 99999` reads back exact inventory the catalog hides on purpose (FR-16/FR-20). Same clamp in P18's issue payload and P22's `409`.
 - **Trace:** FR-18..21, FR-23, SEC-04. Tests: T-05, T-06, T-10 (cart half).
 
 ### P17 — Single-seller cart
@@ -191,7 +194,7 @@ docker-compose.yml  .env.example  docs/plans/
 
 - `revalidate(cart) -> (lines, issues_by_line, has_blocking_issues)`. Per line, in this order: product still exists → `status == published` (else `product_unavailable`) → `quantity <= stock_quantity` (else `insufficient_stock` + `available`) → price drift vs. the price when the line was last written (else `price_changed` + `old_price`/`new_price`).
 - Issue codes are exactly API.md §4's three: `product_unavailable`, `insufficient_stock`, `price_changed`.
-- Price drift needs a stored reference: add `unit_price_at_add Decimal(10,2)` to `CartItem` (migration in this phase), written on every add/update. It exists solely to detect drift — it is never a source of truth for money.
+- Price drift compares `Product.price` against `CartItem.unit_price_at_add` (the column ships in P14). It exists solely to detect drift — it is never a source of truth for money.
 - Response per API.md §4: `{id, seller, items[{id,product_id,name,unit_price,quantity,line_total,stock_state,issues[]}], subtotal, has_blocking_issues}`. `unit_price` is always the **current** product price (OD05); `subtotal` is server-computed.
 - **Trace:** FR-24/25/26, OD05, EC03, EC07. Tests: T-11, T-14 (cart half).
 
@@ -213,8 +216,9 @@ docker-compose.yml  .env.example  docs/plans/
 ### P20 — `order_number` generator
 **Files:** `api/orders/services.py`
 
-- Format `SQ-{YYYY}-{seq}` starting at 1001 per year. Implementation: a Postgres sequence per year is overkill — take `MAX(seq)` for the current year under the checkout transaction's existing lock, or a dedicated `SELECT ... FOR UPDATE` counter row. Uniqueness is backstopped by `unique=True` on the column.
-- `# ponytail: max+1 under the checkout lock; swap to a real sequence if orders ever go multi-writer`
+- Format `SQ-{YYYY}-{seq}` starting at 1001 per year. Implementation: a dedicated counter row per year, `SELECT ... FOR UPDATE`-ed at allocation time. Uniqueness is backstopped by `unique=True` on the column.
+- **Not `MAX(seq)+1`.** The checkout transaction's only locks are on `Product` rows; two concurrent checkouts on *different* products share no lock, both read the same `MAX`, and the loser hits the unique constraint. P22 catches `IntegrityError` for DR-09 only, so that collision would surface as a 500 on an otherwise valid order. The counter row is the lock that actually serializes numbering.
+- `# ponytail: one counter row locked per checkout; swap to a real Postgres sequence if order throughput ever makes that row hot`
 - **Trace:** SRS §4.7, API.md §5.
 
 ### P21 — State machine
@@ -234,8 +238,8 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 2. Existing `Order(customer, idempotency_key)` ⇒ return it with **200**, no side effects.
 3. Cart empty ⇒ `400 empty_cart`. Contact/delivery fields missing ⇒ `400 validation_error`.
 4. `Product.objects.select_for_update().filter(id__in=[...]).order_by('id')` — **ordered locking, deadlock-free** (BR-04).
-5. Re-run `revalidate()` **against the locked rows**; unacknowledged issues ⇒ `409 cart_has_issues` + `details.issues[]`. `acknowledged_issues: ["price_changed"]` in the body clears only that code; stock and availability issues are never acknowledgeable.
-6. Stock shortfall discovered under lock ⇒ `409 insufficient_stock` + `details.product_id`, `details.available`.
+5. Re-run `revalidate()` **against the locked rows**; unacknowledged issues ⇒ `409 cart_has_issues` + `details.issues[]`. An ack is `{code:"price_changed", product_id, new_price}` and clears the issue **only when `new_price` equals the locked row's price** — a bare code would also clear a *second* price move that happened after the customer looked, committing the order at a price they never saw (FR-26). Stock and availability issues are never acknowledgeable.
+6. Stock shortfall discovered under lock ⇒ `409 insufficient_stock` + `details.product_id`; `details.available` only under the P16 clamp.
 7. Totals computed from locked `Product.price` only. Any `price`/`total`/`line_total` in the request body is **not read** — the serializer has no such input fields (SEC-03).
 8. Create `Order`, `bulk_create` `OrderItem` snapshots, deduct stock via `F('stock_quantity') - qty`, write history row `from_status=None → pending`, delete cart lines, commit.
 - `IntegrityError` on DR-09 (two concurrent requests, same key) ⇒ catch, re-read, return the original order with 200 (BR-06).
@@ -260,6 +264,7 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 **Files:** `api/orders/views.py`
 
 - `POST /api/orders/<id>/cancel/` — allowed from `pending`/`confirmed` only, via `assert_transition(..., role='customer')`. Calls `restore_stock`, writes a history row, returns `200 {order_number, status:"cancelled"}`.
+- **Check `status == 'cancelled'` first and return `400 already_cancelled`.** `(cancelled, cancelled)` is absent from `ALLOWED_TRANSITIONS`, so falling straight through to `assert_transition` would answer `invalid_transition` and leave `already_cancelled` (API.md §1.4) unreachable.
 - **Errors:** `400 invalid_transition` (preparing/ready/completed) · `400 already_cancelled` · `404`.
 - **Trace:** FR-42/45, API.md §5. Tests: T-16, T-17.
 
@@ -270,7 +275,8 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 ### P26 — Seller product list/create
 **Files:** `api/catalog/views.py` (seller viewset), `serializers.py`, `urls.py`
 
-- `IsSeller`; `get_queryset()` = `Product.objects.filter(seller=self.request.user.sellerprofile)` — **ownership is a fetch condition, never a post-fetch check** (BR-07/08). Admin gets the same endpoints unscoped.
+- `IsSeller`; `get_queryset()` = `Product.objects.filter(seller=self.request.user.sellerprofile)` — **ownership is a fetch condition, never a post-fetch check** (BR-07/08).
+- **Sellers only — admin is not admitted here.** `request.user.sellerprofile` raises for an admin account (no `SellerProfile`, FR-04) and `POST` would have no seller to assign. Admin reads and edits products through `/api/admin/products/<id>/` (P32).
 - `GET` filters `?status=`, `?search=`, paginated. Item shape per API.md §7 includes `stock_quantity` (full value — sellers see it, the public never does), `stock_state`, `image_count`.
 - `POST` always creates `status='draft'` regardless of any `status` in the body; accepts `name, description, price, stock_quantity, category_id`.
 - **Errors:** `400 validation_error` — price < 0, stock < 0, description > 5000, unknown category.
@@ -324,6 +330,7 @@ Exact sequence inside one `transaction.atomic()` (FR-28):
 - `GET/PATCH /api/admin/products/<id>/` — any product, any status. `moderation_note` **required** when setting `status='rejected'` (400 otherwise).
 - `GET /api/admin/orders/` — all orders, `?status=`, `?seller=`, `?date_from=`, `?date_to=`, paginated.
 - `GET/PATCH /api/admin/users/<id>/` — `{status: "suspended"}` suspends: login fails (P05), existing tokens die on next request (P06), products vanish from the catalog (P11). All three already exist; this phase only flips the flag.
+- When the target has `role='seller'`, mirror `status` onto `SellerProfile.status` in the same transaction. Without this the field is dead schema (nothing else writes it), and P11's catalog filter would need a second join through `User` to answer FR-59.
 - **Trace:** FR-56..59, API.md §8.
 
 ### P33 — Django Admin registration
