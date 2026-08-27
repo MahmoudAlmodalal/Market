@@ -141,10 +141,17 @@ class CheckoutView(APIView):
             raise APIError(MISSING_IDEMPOTENCY_KEY, 'A valid uuid4 Idempotency-Key header is required.')
 
     def _order_response(self, order):
-        return OrderDetailSerializer(order).data | {'items': [
-            {'product_name_snapshot': i.product_name_snapshot, 'unit_price_snapshot': i.unit_price_snapshot, 'quantity': i.quantity, 'line_total': i.line_total}
-            for i in order.items.all()
-        ]}
+        return {
+            'order_number': order.order_number,
+            'status': order.status,
+            'items': [
+                {'product_name_snapshot': i.product_name_snapshot, 'unit_price_snapshot': i.unit_price_snapshot, 'quantity': i.quantity, 'line_total': i.line_total}
+                for i in order.items.all()
+            ],
+            'subtotal': order.subtotal,
+            'total': order.total,
+            'created_at': order.created_at,
+        }
 
     def post(self, request):
         key = self._parse_key(request)
