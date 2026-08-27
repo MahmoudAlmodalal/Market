@@ -31,7 +31,7 @@ def validate_and_escape(suggestion_type, output):
             return None
         if not isinstance(tags, list) or len(tags) > 10 or not all(isinstance(v, str) and TAG_RE.fullmatch(v) for v in tags):
             return None
-        return {'title': html.escape(output['title']), 'short_description': html.escape(output['short_description']), 'description': html.escape(output['description']), 'highlights': [html.escape(v) for v in highlights], 'suggested_tags': [html.escape(v) for v in tags], 'confidence': confidence}
+        return {'title': html.escape(output['title']), 'short_description': html.escape(output['short_description']), 'description': html.escape(output['description']), 'highlights': [html.escape(v) for v in highlights], 'suggested_tags': [html.escape(v) for v in tags], 'confidence': float(confidence)}
     if suggestion_type == 'tags':
         tags = output.get('tags')
         if not isinstance(tags, list) or len(tags) > 10 or not all(isinstance(v, str) and TAG_RE.fullmatch(v) for v in tags):
@@ -39,10 +39,10 @@ def validate_and_escape(suggestion_type, output):
         category = output.get('category')
         if category is not None and not isinstance(category, str):
             return None
-        return {'category': html.escape(category) if category is not None else None, 'tags': [html.escape(v) for v in tags], 'confidence': confidence}
+        return {'category': html.escape(category) if category is not None else None, 'tags': [html.escape(v) for v in tags], 'confidence': float(confidence)}
     if suggestion_type == 'moderation':
         notes = output.get('notes')
         if not isinstance(notes, list) or not notes or not all(isinstance(n, dict) and n.get('type') in NOTE_TYPES and _text(n.get('message'), 1, 500) for n in notes):
             return None
-        return {'notes': [{'type': n['type'], 'message': html.escape(n['message'])} for n in notes], 'confidence': confidence}
+        return {'notes': [{'type': n['type'], 'message': html.escape(n['message'])} for n in notes], 'confidence': float(confidence)}
     return None
