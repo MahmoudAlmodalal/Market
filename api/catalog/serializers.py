@@ -40,7 +40,7 @@ class ProductPublicSerializer(serializers.ModelSerializer):
 
 class ProductDetailSerializer(ProductPublicSerializer):
     images = serializers.SerializerMethodField()
-    seller = SellerSummarySerializer(source='seller', read_only=True)
+    seller = SellerSummarySerializer(read_only=True)
     stock_quantity = serializers.IntegerField(write_only=True, required=False)
     description = serializers.CharField()
     available_quantity = serializers.SerializerMethodField()
