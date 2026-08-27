@@ -54,11 +54,12 @@ class ProductDetailSerializer(ProductPublicSerializer):
 
     def get_available_quantity(self, obj):
         from django.conf import settings
-        return obj.stock_quantity if obj.stock_quantity <= settings.LOW_STOCK_THRESHOLD else serializers.empty
+        return obj.stock_quantity if obj.stock_quantity <= settings.LOW_STOCK_THRESHOLD else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        if data.get('available_quantity') is serializers.empty:
+        from django.conf import settings
+        if instance.stock_quantity > settings.LOW_STOCK_THRESHOLD:
             data.pop('available_quantity', None)
         data.pop('stock_quantity', None)
         return data

@@ -27,14 +27,15 @@ def revalidate(cart, locked_products=None):
             issues.append({'code': 'product_unavailable'})
         elif product.status != Product.Status.PUBLISHED:
             issues.append({'code': 'product_unavailable'})
-        elif line.quantity > product.stock_quantity:
-            issue = {'code': 'insufficient_stock'}
-            available = clamped_available(product.stock_quantity)
-            if available is not None:
-                issue['available'] = available
-            issues.append(issue)
-        elif product.price != line.unit_price_at_add:
-            issues.append({'code': 'price_changed', 'old_price': str(line.unit_price_at_add), 'new_price': str(product.price)})
+        else:
+            if line.quantity > product.stock_quantity:
+                issue = {'code': 'insufficient_stock'}
+                available = clamped_available(product.stock_quantity)
+                if available is not None:
+                    issue['available'] = available
+                issues.append(issue)
+            if product.price != line.unit_price_at_add:
+                issues.append({'code': 'price_changed', 'old_price': str(line.unit_price_at_add), 'new_price': str(product.price)})
         if issues:
             issues_by_line[line.id] = issues
             has_blocking = True
