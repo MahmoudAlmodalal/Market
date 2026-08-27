@@ -317,7 +317,8 @@ class SellerDashboardView(APIView):
     def get(self, request):
         from catalog.services import stock_state
         products = Product.objects.filter(seller=request.user.sellerprofile)
-        counts = products.aggregate(product_count=Count('id'), out_of_stock_count=Count('id', filter=Q(stock_quantity=0)), low_stock_count=Count('id', filter=Q(stock_quantity__gt=0, stock_quantity__lte=5)))
+        from django.conf import settings
+        counts = products.aggregate(product_count=Count('id'), out_of_stock_count=Count('id', filter=Q(stock_quantity=0)), low_stock_count=Count('id', filter=Q(stock_quantity__gt=0, stock_quantity__lte=settings.LOW_STOCK_THRESHOLD)))
         statuses = [choice[0] for choice in Order.Status.choices]
         rows = Order.objects.filter(seller=request.user.sellerprofile).values('status').annotate(count=Count('id'))
         by_status = {status: 0 for status in statuses}

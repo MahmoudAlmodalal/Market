@@ -172,6 +172,8 @@ class SellerImageView(APIView):
             sort_order = int(raw_order)
         except (ValueError, TypeError):
             raise APIError(VALIDATION_ERROR, 'sort_order must be an integer.')
+        if sort_order < 0:
+            raise APIError(VALIDATION_ERROR, 'sort_order must not be negative.')
         if ProductImage.objects.filter(product=product, sort_order=sort_order).exists():
             raise APIError(VALIDATION_ERROR, 'sort_order is already taken.')
         obj = ProductImage.objects.create(product=product, image=image, sort_order=sort_order)
