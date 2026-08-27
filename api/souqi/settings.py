@@ -13,7 +13,6 @@ def env_list(name, default=''):
 
 
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
-
 SECRET_KEY = os.environ.get('SECRET_KEY', '')
 if not SECRET_KEY:
     if not DEBUG:
@@ -30,9 +29,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
     'accounts',
+    'catalog',
+    'orders',
+    'ai',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -66,17 +69,16 @@ TEMPLATES = [{
 _db = urlparse(os.environ.get('DATABASE_URL', 'postgres://souqi:souqi@db:5432/souqi'))
 DATABASES = {'default': {
     'ENGINE': 'django.db.backends.postgresql',
-    'NAME': _db.path.lstrip('/'),
-    'USER': _db.username or '',
-    'PASSWORD': _db.password or '',
-    'HOST': _db.hostname or '',
-    'PORT': str(_db.port or ''),
+    'NAME': _db.path.lstrip('/') or 'souqi',
+    'USER': _db.username or 'souqi',
+    'PASSWORD': _db.password or 'souqi',
+    'HOST': _db.hostname or 'db',
+    'PORT': str(_db.port or 5432),
 }}
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-     'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
@@ -88,34 +90,42 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
     'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
 }
-MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = env_list('CORS_ORIGINS', 'http://localhost:3000')
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': ['accounts.authentication.SuspendedAwareJWTAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
     'EXCEPTION_HANDLER': 'common.exceptions.exception_handler',
     'DEFAULT_PAGINATION_CLASS': 'common.pagination.StandardPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {'user': '100/minute', 'anon': '30/minute', 'ai': '10/hour'},
 }
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
 }
 
-# TLS terminates outside this container and compose serves plain :8000, so these
-# stay opt-in: enable HTTPS_ONLY once there is a real proxy in front (D7).
+AI_PROVIDER_KEY = os.environ.get('AI_PROVIDER_KEY', '')
+AI_PROVIDER_URL = os.environ.get('AI_PROVIDER_URL', '')
+LOW_STOCK_THRESHOLD = int(os.environ.get('LOW_STOCK_THRESHOLD', '5'))
+
 if os.environ.get('HTTPS_ONLY', 'False').lower() == 'true':
     SECURE_SSL_REDIRECT = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -124,5 +134,9 @@ if os.environ.get('HTTPS_ONLY', 'False').lower() == 'true':
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 
-AI_PROVIDER_KEY = os.environ.get('AI_PROVIDER_KEY', '')
-LOW_STOCK_THRESHOLD = int(os.environ.get('LOW_STOCK_THRESHOLD', '5'))
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'loggers': {'souqi': {'handlers': ['console'], 'level': 'INFO'}},
+}
