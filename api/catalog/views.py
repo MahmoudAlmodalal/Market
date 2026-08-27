@@ -206,7 +206,10 @@ class AdminProductDetailView(APIView):
         product = self.get_object(pk)
         serializer = ProductWriteSerializer(product, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        if request.data.get('status') == Product.Status.REJECTED and not request.data.get('moderation_note'):
+        requested_status = request.data.get('status')
+        if requested_status is not None and requested_status not in Product.Status.values:
+            raise APIError(VALIDATION_ERROR, 'Invalid product status.')
+        if requested_status == Product.Status.REJECTED and not request.data.get('moderation_note') and not product.moderation_note:
             raise APIError(VALIDATION_ERROR, 'moderation_note is required when rejecting a product.')
         for field in ('status', 'moderation_note'):
             if field in request.data:
