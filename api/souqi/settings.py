@@ -66,15 +66,19 @@ TEMPLATES = [{
     ]},
 }]
 
-_db = urlparse(os.environ.get('DATABASE_URL', 'postgres://souqi:souqi@db:5432/souqi'))
-DATABASES = {'default': {
-    'ENGINE': 'django.db.backends.postgresql',
-    'NAME': _db.path.lstrip('/') or 'souqi',
-    'USER': _db.username or 'souqi',
-    'PASSWORD': _db.password or 'souqi',
-    'HOST': _db.hostname or 'db',
-    'PORT': str(_db.port or 5432),
-}}
+_database_url = os.environ.get('DATABASE_URL', 'postgres://souqi:souqi@db:5432/souqi')
+_db = urlparse(_database_url)
+if _db.scheme.startswith('sqlite'):
+    DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': _db.path or BASE_DIR / 'db.sqlite3'}}
+else:
+    DATABASES = {'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': _db.path.lstrip('/') or 'souqi',
+        'USER': _db.username or 'souqi',
+        'PASSWORD': _db.password or 'souqi',
+        'HOST': _db.hostname or 'db',
+        'PORT': str(_db.port or 5432),
+    }}
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},

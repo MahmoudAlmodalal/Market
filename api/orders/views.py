@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, F, Q, Sum
 from django.http import Http404
 from rest_framework import status
 from rest_framework.response import Response

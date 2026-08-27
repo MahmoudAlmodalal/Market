@@ -19,7 +19,7 @@ def exception_handler(exc, context):
         # drf_handler, but the raw exc has no DRF attributes — read the response.
         detail = response.data.get('detail', '') if isinstance(response.data, dict) else ''
         code = RATE_LIMITED if isinstance(exc, Throttled) else getattr(
-            detail, 'code', getattr(exc, 'default_code', 'error'))
+            exc, 'default_code', getattr(detail, 'code', 'error'))
         message, details = str(detail), {}
 
     response.data = {'error': {'code': code, 'message': message, 'details': details}}
