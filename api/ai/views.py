@@ -131,7 +131,7 @@ class SuggestionRejectView(SuggestionReviewBase):
 
 
 class AdminAISuggestionListView(APIView):
-    permission_classes = [lambda: IsSellerOrAdmin()]
+    permission_classes = [IsSellerOrAdmin]
 
     def get(self, request):
         if request.user.role != User.Role.ADMIN:
