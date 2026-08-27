@@ -80,6 +80,8 @@ class CartItemCreateView(APIView):
         serializer = CartItemWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         product_id = serializer.validated_data.get('product_id')
+        if not product_id:
+            raise APIError(VALIDATION_ERROR, 'product_id is required.')
         try:
             product = Product.objects.select_for_update().select_related('seller').get(pk=product_id)
         except Product.DoesNotExist:

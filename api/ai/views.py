@@ -40,6 +40,13 @@ class AIGenerateView(APIView):
 
     def post(self, request):
         payload = self.build_payload(request)
+        if self.suggestion_type == 'moderation':
+            product_id = payload.get('product_id')
+            qs = Product.objects.filter(pk=product_id)
+            if request.user.role == User.Role.SELLER:
+                qs = qs.filter(seller__user=request.user)
+            if not product_id or not qs.exists():
+                raise Http404
         output = get_provider().generate(self.suggestion_type, payload)
         clean = validate_and_escape(self.suggestion_type, output)
         reason = None if clean is not None and float(clean['confidence']) >= 0.5 else ('schema_invalid' if clean is None else 'low_confidence')
