@@ -141,6 +141,7 @@ if os.environ.get('HTTPS_ONLY', 'False').lower() == 'true':
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'formatters': {'json': {'()': 'common.logging.JsonFormatter'}},
+    'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'json'}},
     'loggers': {'souqi': {'handlers': ['console'], 'level': 'INFO'}},
 }
