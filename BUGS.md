@@ -3,10 +3,13 @@
 Reviewed: `api/` scaffold, `docker-compose.yml`, `.env.example`, and the four spec docs.
 `confirmed` = reproduced by running it. `inspected` = read, not executed.
 
-**Status after the fix pass:** verified with `docker compose run --rm api python manage.py migrate`
-(clean, `accounts.0001_initial` applied), `python -m pytest` (6 passed on real Postgres), and a live
-container on :8020 — `/api/health/` 200, `/admin/login/` 200 under `DEBUG=False`, unknown route
-returns the §1.2 envelope.
+**Status after the fix pass**, all against compose (real Postgres):
+
+- `manage.py migrate` — clean, `accounts.0001_initial` applied
+- `manage.py createsuperuser --noinput --email … --name …` — succeeds (P03 DoD)
+- `python -m pytest` — 7 passed
+- live container on `:8020` — `/api/health/` 200, `/admin/login/` 200 under `DEBUG=False`, unknown
+  route returns the §1.2 envelope
 
 ---
 

@@ -55,3 +55,20 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+class SellerProfile(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = 'active'
+        SUSPENDED = 'suspended'
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='sellerprofile')
+    business_name = models.CharField(max_length=120)
+    description = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.business_name} ({self.user.email})"
+

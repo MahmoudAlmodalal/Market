@@ -1,16 +1,23 @@
-"""The handler branches `test_errors.py` doesn't reach through a view.
-
-The `APIError` branch is covered end-to-end there; these are the other three.
-"""
+"""Every branch of the handler: API.md §1.2's envelope, whatever was raised."""
 from django.http import Http404
 from rest_framework.exceptions import NotAuthenticated, Throttled, ValidationError
 
+from common.errors import APIError, INSUFFICIENT_STOCK
 from common.exceptions import exception_handler
 
 
 def envelope(exc):
     response = exception_handler(exc, {})
     return response.status_code, response.data['error']
+
+
+def test_api_error_keeps_code_status_and_details():
+    status, error = envelope(APIError(INSUFFICIENT_STOCK, 'Only 3 units available.',
+                                      {'available': 3}, status_code=409))
+    assert status == 409
+    assert error == {'code': 'insufficient_stock',
+                     'message': 'Only 3 units available.',
+                     'details': {'available': 3}}
 
 
 def test_validation_error_puts_field_errors_in_details():

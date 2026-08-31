@@ -1,5 +1,17 @@
 .env
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
 api/staticfiles/
 api/media/
+.DS_Store
+Thumbs.db

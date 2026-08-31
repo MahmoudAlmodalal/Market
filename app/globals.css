@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Surface & Canvas Tokens */
+  --surface: #FCF9F8;
+  --surface-dim: #DCD9D9;
+  --surface-bright: #FCF9F8;
+  --surface-lowest: #FFFFFF;
+  --surface-low: #F6F3F2;
+  --surface-container: #F0EDED;
+  --surface-high: #EAE7E7;
+  --surface-highest: #E5E2E1;
+  --canvas: #FAFAFA;
+
+  /* Brand Coral Scale */
+  --brand-50: #FFF1F3;
+  --brand-100: #FFE3E7;
+  --brand-200: #FFC9D1;
+  --brand-300: #F8AEBB;
+  --brand-400: #EB8996;
+  --brand-500: #E9495E;
+  --brand-600: #D9364D;
+  --brand-700: #B92B3F;
+  --brand-800: #932338;
+  --brand-900: #641423;
+
+  /* Neutrals */
+  --neutral-0: #FFFFFF;
+  --neutral-50: #FAFAFA;
+  --neutral-100: #F5F5F5;
+  --neutral-200: #EAEAEA;
+  --neutral-300: #D6D6D6;
+  --neutral-400: #A8A8A8;
+  --neutral-500: #737373;
+  --neutral-600: #525252;
+  --neutral-700: #363636;
+  --neutral-800: #202020;
+  --neutral-900: #111111;
+
+  /* Semantics */
+  --color-success: #22A06B;
+  --color-warning: #E9A23B;
+  --color-error: #D92D3F;
+  --color-info: #3B82F6;
+
+  /* Borders & Hairline */
+  --hairline: #EAEAEA;
+
+  /* Elevation Presets */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.10);
+  --shadow-glow: 0 8px 20px rgba(233, 73, 94, 0.18);
+  --shadow-glow-hover: 0 8px 20px rgba(233, 73, 94, 0.25);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    border-color: var(--hairline);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    background-color: var(--canvas);
+    color: var(--neutral-800);
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: var(--canvas);
+    color: var(--neutral-800);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Direction specific typography priority */
+  [dir="rtl"] {
+    font-family: var(--font-cairo), Cairo, sans-serif;
+  }
+
+  [dir="ltr"] {
+    font-family: var(--font-inter), Inter, sans-serif;
+  }
+
+  /* Number formatting isolation */
+  .numeric-data {
+    font-family: var(--font-inter), Inter, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /* Hero promo gradient per design system */
+  .bg-hero-gradient {
+    background: linear-gradient(135deg, #FFF1F3 0%, #FFD9DF 100%);
+  }
+
+  /* Focus ring preset conforming to WCAG AA */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+  }
+
+  /* Custom card hover elevation */
+  .card-elevation {
+    box-shadow: var(--shadow-md);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-elevation:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+}
