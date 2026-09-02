@@ -4,6 +4,26 @@
  */
 
 export const TOKENS = {
+  brand: {
+    coral: "#E9495E",
+    hover: "#D9364D",
+    active: "#B92B3F",
+    soft: "#FFF1F3",
+    50: "#FFF1F3",
+    100: "#FFE3E7",
+    200: "#FFC9D1",
+    300: "#F8AEBB",
+    400: "#EB8996",
+    500: "#E9495E",
+    600: "#D9364D",
+    700: "#B92B3F",
+    800: "#932338",
+    900: "#641423",
+  },
+  viewports: {
+    mobileMin: "390px",
+    mobileMax: "430px",
+  },
   colors: {
     primary: {
       50: "#FFF1F3",

@@ -80,12 +80,12 @@ description: "Task list for Custom User Model and Email Authentication (TK-03)"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T010 [P] [US2] Write unit tests for email normalization and case-insensitive unique constraint collisions in `api/tests/test_accounts.py`
+- [X] T010 [P] [US2] Write unit tests for email normalization and case-insensitive unique constraint collisions in `api/tests/test_accounts.py`
 
 ### Implementation for User Story 2
 
-- [ ] T011 [US2] Add `normalize_email()` in `UserManager.create_user` and database `UniqueConstraint(Lower('email'), name='uniq_email_ci')` to `User.Meta` in `api/accounts/models.py`
-- [ ] T012 [US2] Generate initial migration `0001_initial.py` containing table schema and `uniq_email_ci` constraint in `api/accounts/migrations/0001_initial.py`
+- [X] T011 [US2] Add `normalize_email()` in `UserManager.create_user` and database `UniqueConstraint(Lower('email'), name='uniq_email_ci')` to `User.Meta` in `api/accounts/models.py`
+- [X] T012 [US2] Generate initial migration `0001_initial.py` containing table schema and `uniq_email_ci` constraint in `api/accounts/migrations/0001_initial.py`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently.
 
@@ -99,11 +99,11 @@ description: "Task list for Custom User Model and Email Authentication (TK-03)"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T013 [P] [US3] Write unit tests for superuser creation via `create_superuser` and CLI createsuperuser invariants in `api/tests/test_accounts.py`
+- [X] T013 [P] [US3] Write unit tests for superuser creation via `create_superuser` and CLI createsuperuser invariants in `api/tests/test_accounts.py`
 
 ### Implementation for User Story 3
 
-- [ ] T014 [US3] Implement `create_superuser` method in `UserManager` enforcing `is_staff=True`, `is_superuser=True`, and `role=User.Role.ADMIN` in `api/accounts/models.py`
+- [X] T014 [US3] Implement `create_superuser` method in `UserManager` enforcing `is_staff=True`, `is_superuser=True`, and `role=User.Role.ADMIN` in `api/accounts/models.py`
 
 **Checkpoint**: At this point, User Stories 1, 2, and 3 should all work independently.
 
@@ -117,11 +117,11 @@ description: "Task list for Custom User Model and Email Authentication (TK-03)"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T015 [P] [US4] Write unit tests for `User.Role` and `User.Status` text choices, defaults, and transitions in `api/tests/test_accounts.py`
+- [X] T015 [P] [US4] Write unit tests for `User.Role` and `User.Status` text choices, defaults, and transitions in `api/tests/test_accounts.py`
 
 ### Implementation for User Story 4
 
-- [ ] T016 [US4] Implement `Role` (`TextChoices`) and `Status` (`TextChoices`) enumerations with field defaults on `User` in `api/accounts/models.py`
+- [X] T016 [US4] Implement `Role` (`TextChoices`) and `Status` (`TextChoices`) enumerations with field defaults on `User` in `api/accounts/models.py`
 
 **Checkpoint**: All user stories should now be independently functional.
 
@@ -131,10 +131,10 @@ description: "Task list for Custom User Model and Email Authentication (TK-03)"
 
 **Purpose**: System verification, migration integrity checks, test execution, and documentation validation
 
-- [ ] T017 [P] Validate migration application and consistency against clean PostgreSQL database in `api/accounts/migrations/0001_initial.py`
-- [ ] T018 [P] Execute full automated test suite for accounts domain in `api/tests/test_accounts.py`
-- [ ] T019 Run quickstart scenarios verification per `specs/001-accounts-user/quickstart.md`
-- [ ] T020 [P] Update API and domain documentation for accounts module in `API.md`
+- [X] T017 [P] Validate migration application and consistency against clean PostgreSQL database in `api/accounts/migrations/0001_initial.py`
+- [X] T018 [P] Execute full automated test suite for accounts domain in `api/tests/test_accounts.py`
+- [X] T019 Run quickstart scenarios verification per `specs/001-accounts-user/quickstart.md`
+- [X] T020 [P] Update API and domain documentation for accounts module in `API.md`
 
 ---
 

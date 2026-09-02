@@ -58,7 +58,7 @@ class TestUserModelAndAuth:
         response = client.post('/api/auth/register/', {
             'email': 'customer@test.com',
             'name': 'Customer Test',
-            'password': 'password123',
+            'password': 'SecureBuyerPass123!',
             'role': 'customer',
         }, format='json')
         assert response.status_code == 201
@@ -73,7 +73,7 @@ class TestUserModelAndAuth:
         response = client.post('/api/auth/register/', {
             'email': 'seller@test.com',
             'name': 'Seller Business',
-            'password': 'password123',
+            'password': 'SecureSellerPass123!',
             'role': 'seller',
         }, format='json')
         assert response.status_code == 201

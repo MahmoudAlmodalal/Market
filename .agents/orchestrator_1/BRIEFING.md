@@ -1,4 +1,4 @@
-# BRIEFING — 2026-08-31T08:23:00Z
+# BRIEFING — 2026-08-31T08:24:00Z
 
 ## Mission
 Coordinate end-to-end implementation and verification of the complete mobile-first bilingual (Arabic RTL / English LTR) UI for Souqi Marketplace across all planned phases.
@@ -37,7 +37,7 @@ Coordinate end-to-end implementation and verification of the complete mobile-fir
 
 ## Current Parent
 - Conversation ID: 96e660f9-8538-464a-8502-4641982b58bd
-- Updated: 2026-08-31T08:23:00Z
+- Updated: 2026-08-31T08:24:00Z
 
 ## Key Decisions Made
 - Initiated parallel survey with 1 spec miner and 2 explorers to examine existing codebase structure, package.json dependencies, and SOUQI_UI_IMPLEMENTATION_PLAN.md.
@@ -45,16 +45,19 @@ Coordinate end-to-end implementation and verification of the complete mobile-fir
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
+| spec_miner_survey_1 | teamwork_preview_spec_miner | Spec Mining & Feature Inventory | in-progress | 85a493e8-6f54-4e08-86b2-9b8d3a08952f |
+| explorer_codebase_1 | teamwork_preview_explorer | Codebase & Gap Analysis | in-progress | 312d5161-2eef-423c-96c2-f8311de89250 |
+| explorer_architecture_1 | teamwork_preview_explorer | Technical & Routing Architecture | in-progress | a82e5320-77ca-4c35-818b-02bd236dd2c5 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 0 / 16
-- Pending subagents: none
+- Spawn count: 3 / 16
+- Pending subagents: 85a493e8-6f54-4e08-86b2-9b8d3a08952f, 312d5161-2eef-423c-96c2-f8311de89250, a82e5320-77ca-4c35-818b-02bd236dd2c5
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: not started
+- Heartbeat cron: 359b7d12-ee48-44f2-8fb8-c95ae595adf9/task-12
 - Safety timer: none
 
 ## Artifact Index

@@ -198,8 +198,10 @@ class SellerProductCreateSerializer(serializers.ModelSerializer):
             'description',
             'price',
             'stock_quantity',
+            'status',
             'category_id',
         ]
+        read_only_fields = ['id', 'status']
 
     def validate_price(self, value):
         if value < 0:
