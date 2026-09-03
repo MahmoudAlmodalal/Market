@@ -17,9 +17,10 @@ import {
   XCircle,
 } from "lucide-react";
 import type { Product, StockState } from "@/types/catalog";
+import type { ProductDetail } from "@/lib/api/types";
 
 export interface ProductInfoProps {
-  product: Product & {
+  product: (Product | ProductDetail) & {
     title_ar?: string;
     title_en?: string;
     description_ar?: string;
@@ -28,6 +29,9 @@ export interface ProductInfoProps {
     original_price?: string | number;
     rating?: number;
     review_count?: number;
+    tags?: string[];
+    is_ai_suggested?: boolean;
+    unit?: string;
   };
   rating?: number;
   reviewCount?: number;
@@ -38,8 +42,8 @@ export interface ProductInfoProps {
 
 export function ProductInfo({
   product,
-  rating = 4.9,
-  reviewCount = 12,
+  rating,
+  reviewCount,
   onReviewsClick,
   onShare,
   className,
@@ -72,7 +76,10 @@ export function ProductInfo({
   const currencySymbol = t("common.currency", "₪");
 
   // Stock status resolution
-  const stockQuantity = product.available_quantity ?? product.stock_quantity ?? (product.stock_state === "out_of_stock" ? 0 : 10);
+  const stockQuantity =
+    product.available_quantity ??
+    ('stock_quantity' in product ? product.stock_quantity : undefined) ??
+    (product.stock_state === "out_of_stock" ? 0 : 10);
   const isLowStock = product.stock_state === "low_stock" || (stockQuantity > 0 && stockQuantity <= 5);
   const isOutOfStock = product.stock_state === "out_of_stock" || stockQuantity <= 0;
 
@@ -173,23 +180,27 @@ export function ProductInfo({
       </h1>
 
       {/* Star Rating & Review Count Link */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onReviewsClick}
-          className="flex items-center gap-1.5 text-neutral-700 hover:text-neutral-900 group transition-colors"
-        >
-          <div className="flex items-center gap-0.5 text-amber-500">
-            <Star className="w-4 h-4 fill-current" />
-            <span className="text-sm font-extrabold numeric-data text-neutral-900">
-              {productRating.toFixed(1)}
-            </span>
-          </div>
-          <span className="text-xs font-semibold text-neutral-500 group-hover:text-brand-600 underline underline-offset-2 numeric-data">
-            ({productReviewCount} {t("pdp.reviews", "تقييم")})
-          </span>
-        </button>
-      </div>
+      {productRating !== undefined && onReviewsClick && (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onReviewsClick}
+            className="flex items-center gap-1.5 text-neutral-700 hover:text-neutral-900 group transition-colors"
+          >
+            <div className="flex items-center gap-0.5 text-amber-500">
+              <Star className="w-4 h-4 fill-current" />
+              <span className="text-sm font-extrabold numeric-data text-neutral-900">
+                {productRating.toFixed(1)}
+              </span>
+            </div>
+            {productReviewCount !== undefined && (
+              <span className="text-xs font-semibold text-neutral-500 group-hover:text-brand-600 underline underline-offset-2 numeric-data">
+                ({productReviewCount} {t("pdp.reviews", "تقييم")})
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Price & Unit Block */}
       <div className="flex items-baseline gap-2.5 pb-2 border-b border-neutral-100">

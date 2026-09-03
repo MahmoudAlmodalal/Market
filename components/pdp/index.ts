@@ -15,3 +15,6 @@ export type { StickyActionBarProps } from "./StickyActionBar";
 
 export { ReviewList } from "./ReviewList";
 export type { ReviewListProps } from "./ReviewList";
+
+export { ProductDetailHeader } from "./ProductDetailHeader";
+export type { ProductDetailHeaderProps } from "./ProductDetailHeader";

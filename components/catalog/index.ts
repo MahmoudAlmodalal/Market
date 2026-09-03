@@ -1,3 +1,4 @@
 export * from "./ProductCard";
 export * from "./ProductCardSkeleton";
 export * from "./CatalogGrid";
+export * from "./CatalogView";

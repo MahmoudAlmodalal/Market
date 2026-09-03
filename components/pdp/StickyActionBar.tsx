@@ -7,9 +7,10 @@ import { useCart } from "@/lib/context/CartContext";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { ShoppingBag, Check, AlertCircle } from "lucide-react";
 import type { Product, StockState } from "@/types/catalog";
+import type { ProductDetail } from "@/lib/api/types";
 
 export interface StickyActionBarProps {
-  product: Product;
+  product: Product | ProductDetail;
   selectedVariantDelta?: number;
   selectedVariantName?: string;
   className?: string;
@@ -36,7 +37,10 @@ export function StickyActionBar({
   const currency = t("common.currency", "₪");
 
   // Stock check
-  const availableStock = product.available_quantity ?? product.stock_quantity ?? (product.stock_state === "out_of_stock" ? 0 : 99);
+  const availableStock =
+    product.available_quantity ??
+    ('stock_quantity' in product ? product.stock_quantity : undefined) ??
+    (product.stock_state === "out_of_stock" ? 0 : 99);
   const isOutOfStock = product.stock_state === "out_of_stock" || availableStock <= 0;
 
   // React to cart items update (e.g. after resolving multi-seller conflict dialog)
@@ -62,10 +66,23 @@ export function StickyActionBar({
     setIsSubmitting(true);
 
     try {
-      const productToAdd = {
+      const productToAdd: Product = {
         ...product,
-        price: unitPrice.toFixed(2),
+        id: product.id,
         name: selectedVariantName ? `${product.name} (${selectedVariantName})` : product.name,
+        price: unitPrice.toFixed(2),
+        stock_state: (product.stock_state as StockState) || "available",
+        available_quantity: product.available_quantity,
+        category: product.category
+          ? { id: product.category.id, name: product.category.name }
+          : { id: 0, name: "" },
+        seller: product.seller
+          ? {
+              id: product.seller.id,
+              business_name: product.seller.business_name,
+              description: product.seller.description,
+            }
+          : undefined,
       };
 
       const result = addItem(productToAdd, quantity);

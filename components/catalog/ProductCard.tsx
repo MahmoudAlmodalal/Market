@@ -3,16 +3,17 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import type { Product } from "@/types/catalog";
+import type { Product, StockState } from "@/types/catalog";
+import type { ProductListItem } from "@/lib/api/types";
 import { useTranslation, useLocale } from "@/lib/context/LocaleContext";
 import { useCart } from "@/lib/context/CartContext";
 import { Badge } from "@/components/ui/Badge";
 import { ShoppingBag, Check, Sparkles, AlertCircle } from "lucide-react";
 
 export interface ProductCardProps {
-  product: Product;
+  product: Product | ProductListItem;
   className?: string;
-  onAddToCart?: (product: Product) => void;
+  onAddToCart?: (product: Product | ProductListItem) => void;
   priorityImage?: boolean;
 }
 
@@ -48,7 +49,18 @@ export function ProductCard({
     if (isOutOfStock || isAdding) return;
 
     setIsAdding(true);
-    const result = addItem(product, 1);
+    const productToAdd: Product = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      primary_image: product.primary_image ?? undefined,
+      stock_state: (product.stock_state as StockState) || "available",
+      seller_name: product.seller_name,
+      category: product.category
+        ? { id: product.category.id, name: product.category.name }
+        : { id: 0, name: "" },
+    };
+    const result = addItem(productToAdd, 1);
 
     if (onAddToCart) {
       onAddToCart(product);
@@ -65,9 +77,16 @@ export function ProductCard({
     }
   };
 
+    const isAiSuggested = 'is_ai_suggested' in product ? product.is_ai_suggested : false;
+    const isFeatured = 'is_featured' in product ? product.is_featured : false;
+    const availableQty = 'available_quantity' in product ? product.available_quantity : undefined;
+    const sellerBusinessName = 'seller' in product ? product.seller?.business_name : undefined;
+    const unit = 'unit' in product ? product.unit : undefined;
+    const imagesList = 'images' in product ? product.images : undefined;
+
   const imageSrc =
     product.primary_image ||
-    (product.images && product.images.length > 0 ? product.images[0].image : "") ||
+    (imagesList && imagesList.length > 0 ? imagesList[0].image : "") ||
     "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=600&q=80";
 
   return (
@@ -100,12 +119,12 @@ export function ProductCard({
           {/* Top Floating Badges */}
           <div className="absolute top-2 start-2 end-2 flex items-center justify-between gap-1 pointer-events-none z-10">
             {/* Left/Start Badge (AI Suggestion or Category) */}
-            {product.is_ai_suggested ? (
+            {isAiSuggested ? (
               <span className="inline-flex items-center gap-1 bg-brand-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-pill shadow-glow">
                 <Sparkles className="w-2.5 h-2.5" />
                 <span>{t("catalog.aiSuggested", "اقتراح ذكي")}</span>
               </span>
-            ) : product.is_featured ? (
+            ) : isFeatured ? (
               <span className="inline-flex items-center bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-pill shadow-sm">
                 {t("catalog.bestSeller", "مميز")}
               </span>
@@ -122,10 +141,10 @@ export function ProductCard({
               <span className="inline-flex items-center gap-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-pill">
                 <AlertCircle className="w-2.5 h-2.5" />
                 <span>
-                  {product.available_quantity
+                  {availableQty
                     ? locale === "ar"
-                      ? `بقي ${product.available_quantity}`
-                      : `${product.available_quantity} left`
+                      ? `بقي ${availableQty}`
+                      : `${availableQty} left`
                     : t("catalog.lowStock", "محدود")}
                 </span>
               </span>
@@ -138,7 +157,7 @@ export function ProductCard({
           {/* Seller Name & Category */}
           <div className="flex items-center justify-between text-[11px] text-neutral-500 gap-1">
             <span className="truncate max-w-[65%] font-medium">
-              {product.seller_name || product.seller?.business_name || ""}
+              {product.seller_name || sellerBusinessName || ""}
             </span>
             {product.category?.name && (
               <span className="truncate text-neutral-400 text-[10px]">
@@ -172,9 +191,9 @@ export function ProductCard({
             </span>
           </div>
 
-          {product.unit && (
+          {unit && (
             <span className="text-[10px] text-neutral-400 truncate max-w-[70px]">
-              /{product.unit.replace(/^(علبة|عبوة|طقم|مرطبان|كيس|زجاجة|قطعة)\s*\/?\s*/, "")}
+              /{unit.replace(/^(علبة|عبوة|طقم|مرطبان|كيس|زجاجة|قطعة)\s*\/?\s*/, "")}
             </span>
           )}
         </div>

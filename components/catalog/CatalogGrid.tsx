@@ -3,6 +3,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/types/catalog";
+import type { ProductListItem } from "@/lib/api/types";
 import { useTranslation, useLocale } from "@/lib/context/LocaleContext";
 import { ProductCard } from "./ProductCard";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
@@ -10,13 +11,13 @@ import { Button } from "@/components/ui/Button";
 import { SearchX, AlertTriangle, RotateCcw, PackageOpen } from "lucide-react";
 
 export interface CatalogGridProps {
-  products: Product[];
+  products: (Product | ProductListItem)[];
   isLoading?: boolean;
   isError?: boolean;
   errorMessage?: string;
   onRetry?: () => void;
   onResetFilters?: () => void;
-  onAddToCart?: (product: Product) => void;
+  onAddToCart?: (product: Product | ProductListItem) => void;
   skeletonCount?: number;
   className?: string;
   emptyTitle?: string;
