@@ -35,15 +35,30 @@ Base commit: `11db381` (wip: responsive + orders/cart UI tweaks before backend i
 |---|------|--------|--------|
 | P1 | `lib/api/` client + resources | committed | `c1e1640` |
 | P2 | Public pages → server-side fetch | committed | `2e79b94` |
-| P3 | AuthContext → real JWT | **BLOCKED — agy quota** | |
-| P4 | Cart / checkout / orders | queued | |
+| P3 | AuthContext → real JWT | committed | `0e3c955` |
+| P4 | Cart / checkout / orders | BLOCKED — see BLOCKER #2 | |
 | P5 | Seller surface | queued | |
 | P6a | Backend: admin product/user list endpoints | queued | |
 | P6b | Admin UI | queued | |
 | P7 | Delete mock layer | queued | |
 | P8 | Playwright E2E vs live backend | queued | |
 
-## BLOCKER (2026-09-03 ~13:32 local)
+## BLOCKER #2 (2026-09-03 14:03 local) — suspected auth, not quota
+P4 died 17 seconds in on `RESOURCE_EXHAUSTED (code 429)`, right after a quota recharge that P3's
+single run should not have drained.
+
+The same log carries **62** instances of `error getting token source: You are not logged into
+Antigravity` (from `loadCodeAssist` / `Cache(userInfo)` singleflight refresh). `agy models` still
+succeeds, so *some* credential path works while the code-assist path does not.
+
+Working hypothesis: the CLI lost its login after the 1.1.23 → 1.1.25 self-update and is falling back
+to an unauthenticated/free tier whose quota is already spent — i.e. the 429 is a *symptom* of the
+auth failure, not evidence the paid quota is gone. Unconfirmed.
+
+Next step before any re-dispatch: re-authenticate by launching `agy` interactively (there is no
+`agy login` subcommand — login happens on first interactive launch), then re-run P4.
+
+## BLOCKER #1 (2026-09-03 ~13:32 local) — resolved by user recharge
 Antigravity is out of model quota — **account-wide, not per-model**. Three P3 dispatches:
 1. default model + `--effort high` → `RESOURCE_EXHAUSTED (code 429)`, 0 files touched.
 2. `--model claude-sonnet-4-6 --effort high` → CLI usage error (`--effort` unsupported for that
