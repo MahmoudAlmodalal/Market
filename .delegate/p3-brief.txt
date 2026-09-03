@@ -1,0 +1,128 @@
+<task>
+Repo: /home/mahmoud/Desktop/p3 — Next.js 15 App Router frontend ("Souqi" marketplace, TypeScript,
+Tailwind, `@/*` alias to repo root) plus a Django 5 + DRF backend in `api/` that is ALREADY RUNNING at
+http://localhost:8000 with seeded data.
+
+Previous steps built `lib/api/` (a typed HTTP client — **read `lib/api/client.ts`, `resources.ts` and
+`types.ts` first**) and migrated the three public catalog pages to real server-side data.
+
+YOUR TASK: replace the mock implementation of `lib/context/AuthContext.tsx` with real JWT auth against
+the backend, and update the components that consume it.
+
+`lib/context/AuthContext.tsx` is currently ~370 lines of fiction: it seeds state from `MOCK_CUSTOMER`,
+`MOCK_SELLER_PROFILE`, `MOCK_LOYALTY_TIER`, `MOCK_SAVED_ADDRESSES`, `MOCK_PAYMENT_METHODS` and
+`MOCK_NOTIFICATION_PREFERENCES`, and fakes login/register in `setTimeout`s. Read it fully before you
+start.
+
+The new context exposes ONLY what the backend can actually support:
+- `user: AuthUser | null` — exactly `{id, name, email, role}` (that is all `UserSerializer` returns;
+  confirm in `api/accounts/serializers.py`). `role` is `'customer' | 'seller' | 'admin'`.
+- `isLoading: boolean`, `isAuthenticated: boolean`
+- `login(email, password)` → `POST /auth/login/`, returns `{user, access, refresh}`. Store the tokens
+  via `setTokens` from `lib/api/client.ts` — **use those helpers, do not write your own localStorage
+  token code**, so the client's refresh-on-401 keeps working.
+- `register({name, email, password, role})` → `POST /auth/register/`, same response shape; also stores
+  tokens and logs the user straight in.
+- `logout()` → `clearTokens()` + clear user state.
+- Boot hydration: on mount, if a token exists, call `GET /auth/me/` to restore the session; on any
+  error clear tokens and end up logged out. `isLoading` must be true until this settles, and the app
+  must render logged-out (not crash) when there is no session. Do NOT seed any user by default — the
+  app currently boots pretending to be logged in, and that must stop.
+
+Error handling that must be surfaced in the UI, not swallowed:
+- Login failures throw `ApiError` with code `invalid_credentials` (HTTP 401) — show a readable message
+  on the login form.
+- A suspended account throws code `account_suspended` (HTTP 401) on both login and `GET /auth/me/` —
+  show a distinct message and make sure `/auth/me/` failing this way logs the user out.
+- Register failures throw code `validation_error` with `details` holding per-field messages, e.g.
+  `{"email": ["A user with this email already exists."]}` or `{"password": ["This password is too
+  common.", ...]}`. Render these **per field** on the register form, not as one blob. Password rules
+  are Django's validators: minimum 8 characters, not entirely numeric, not a common password.
+- `register` accepts role `customer` or `seller` ONLY (`RegisterSerializer.role` is a ChoiceField over
+  those two). Registering a seller also creates a `SellerProfile` server-side. There is no way to
+  register an admin — that is intentional.
+
+REMOVE from the context and from every component that reads them — the backend has no such data and
+keeping them means shipping fiction:
+- `switchRole` and `activeRole`. A user's role is a fixed column on the user row; it cannot be toggled
+  client-side. Everywhere that branched on `activeRole`, branch on `user.role` instead. (The seller and
+  admin views are demoed by logging into a seller/admin account, not by flipping a switch.)
+- `savedAddresses` and all address CRUD (`addAddress`, `updateAddress`, `deleteAddress`,
+  `setDefaultAddress` or similar) — there is no Address model in `api/`.
+- `paymentMethods` — no payment model exists.
+- `loyaltyTier` — no loyalty/points model exists.
+- `notificationPreferences` — no notification-preferences model exists.
+- `sellerProfile` / `updateSellerProfile` — check `api/accounts/views.py` `MeView` and
+  `api/accounts/serializers.py`: keep this ONLY if `GET /auth/me/` actually returns seller profile
+  data. If it does not, remove it. Report which you found.
+- `updateProfile` — check whether `MeView` supports PATCH. If it does not, remove `updateProfile` and
+  make the profile fields read-only in the UI. Report which you found.
+
+Consumers you must update so the app still compiles and renders sensibly (find them all with
+`grep -rn "useAuth" app components`):
+- `app/[locale]/login/page.tsx` — wire to the real `login`, surface `invalid_credentials` /
+  `account_suspended`, redirect on success. Keep the existing visual design.
+- `app/[locale]/register/page.tsx` — wire to the real `register` with a customer/seller role choice and
+  per-field `validation_error` rendering.
+- `components/profile/AccountSettings.tsx` — currently reads `activeRole`, `switchRole`,
+  `savedAddresses`, `notificationPreferences`. Delete the role-switch button, the saved-addresses
+  section and the notification-preferences toggles. Keep logout and whatever genuinely maps to the
+  real user.
+- `components/profile/ProfileHeader.tsx` — currently reads `activeRole` and `loyaltyTier`. Delete the
+  loyalty/points display; derive the seller/admin badge from `user.role`.
+- `components/profile/LogoutModal.tsx`, `app/[locale]/profile/page.tsx` — adjust as needed.
+- Any page that should require a session (profile, orders, seller) should redirect to
+  `/{locale}/login` when `isLoading` is false and there is no user. Note every route is under
+  `app/[locale]/...` — a bare `/login` does not exist and will 404.
+
+Working credentials on the running backend (all with password `password123`):
+  omar@souqi.com (customer), sara@souqi.com (seller), admin@souqi.com (admin)
+
+LEAVE UNTOUCHED: everything under `api/`, `lib/api/`, `lib/mock/` (no deletions — a later step sweeps
+them), `lib/context/CartContext.tsx` and `lib/context/NotificationContext.tsx` (a later step handles
+the cart; notifications get deleted later), the three public catalog pages, `package.json`,
+`next.config.mjs`, `.env`, `.env.local`. Add no npm dependencies. Do not restyle anything — this is a
+data-source change, and the pages should look the same minus the deleted sections. Other pages
+(cart, checkout, orders, seller dashboard) still run on mocks and must keep compiling.
+</task>
+
+<verification_loop>
+The backend is running; verify against it rather than guessing:
+  curl -s -X POST http://localhost:8000/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"omar@souqi.com","password":"password123"}'
+  curl -s -X POST http://localhost:8000/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"omar@souqi.com","password":"wrong"}'
+  curl -s -X POST http://localhost:8000/api/auth/register/ -H 'Content-Type: application/json' -d '{"email":"omar@souqi.com","password":"abc","name":"X","role":"customer"}'
+  curl -s http://localhost:8000/api/auth/me/ -H "Authorization: Bearer <access from the login above>"
+Then run this and make it green before finishing — fix what it surfaces, do not just report it:
+  npm run build
+IMPORTANT: run each verification command in the FOREGROUND and wait for it to finish. Do not launch
+build or dev servers as background jobs and then end your turn — a previous run did that and produced
+no usable report.
+(`npm run lint` is NOT usable in this repo: eslint is not installed and `next lint` prompts
+interactively. `next build` performs the type check. Do not install eslint.)
+Finally confirm `grep -rn "lib/mock" lib/context/AuthContext.tsx app/\[locale\]/login app/\[locale\]/register components/profile` returns nothing.
+</verification_loop>
+
+<missing_context_gating>
+Do not guess backend shapes, field names, or error codes. Everything must come from reading
+`api/accounts/serializers.py`, `api/accounts/views.py`, `api/accounts/models.py`,
+`api/common/errors.py`, or a live curl. Two questions you must answer by reading the code rather than
+assuming: (a) does `GET /auth/me/` return seller profile data? (b) does `MeView` accept PATCH for
+profile updates? State both answers explicitly in your report.
+</missing_context_gating>
+
+<action_safety>
+Scope strictly to auth: the context, the login/register pages, and the profile components that read
+removed fields. No unrelated refactors, renames, or restyling. Do NOT run `git add` or `git commit` —
+the orchestrator reviews and commits. Leave the work uncommitted in the working tree. Do not leave a
+dev server running.
+</action_safety>
+
+<structured_output_contract>
+End your turn with a report in this exact shape — do not end the turn while a command is still running:
+  1. The new AuthContext surface (what it exposes) and what you removed
+  2. Your answers to the two `missing_context_gating` questions, with the file/line evidence
+  3. Files touched (full list, marking new vs modified)
+  4. Gate outcome — paste the `npm run build` summary
+  5. Anything you removed that the user may want back, and anything you want decided before the next
+     step (which rewrites CartContext, checkout and orders)
+</structured_output_contract>

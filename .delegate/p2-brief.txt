@@ -1,0 +1,120 @@
+<task>
+Repo: /home/mahmoud/Desktop/p3 — Next.js 15 App Router frontend ("Souqi" marketplace, TypeScript,
+Tailwind, `@/*` alias to repo root) plus a Django 5 + DRF backend in `api/` that is ALREADY RUNNING at
+http://localhost:8000 with seeded data (12 published products, 4 categories, 3 sellers).
+
+A previous step created a typed HTTP client in `lib/api/` (`client.ts`, `resources.ts`, `types.ts`).
+**Read all three files first** — you must use them, not raw `fetch`. Relevant exports:
+`apiFetch`, `ApiError`, `Page<T>`, `listResults`, and in `resources.ts`: `getProducts(params)`,
+`getProduct(id)`, `getCategories()`. `NEXT_PUBLIC_API_URL` is set in `.env.local`.
+
+YOUR TASK: convert the three public catalog pages from mock-data client components into Server
+Components that fetch real data from the backend, keeping interactive UI as client child components.
+
+  app/[locale]/page.tsx              (home feed)
+  app/[locale]/catalog/page.tsx      (catalog / search / filter)
+  app/[locale]/products/[id]/page.tsx (product detail page, PDP)
+
+All three are currently `"use client"` and import from `@/lib/mock/*`. After this task **none of these
+three pages may import anything from `@/lib/mock`**. That is the primary acceptance criterion.
+
+How to do it:
+- Make each page an async Server Component (no `"use client"` at page level). Add
+  `export const dynamic = 'force-dynamic'` to each — this data is per-request and the backend is not
+  reachable at build time in CI. Without it `next build` either fails or bakes stale HTML.
+- Read `params` / `searchParams` in the page (Next 15: both are Promises — `await` them).
+- Push filtering to the backend rather than filtering in JS. `GET /products/` supports exactly these
+  query params (confirmed in `api/catalog/filters.py`): `search`, `category` (numeric category id),
+  `seller` (numeric), `ordering` (one of `price`, `-price`, `created_at`, `-created_at`), `page`,
+  `page_size`. The catalog page's URL query string should drive those params.
+- Keep all existing presentational components (`CatalogGrid`, `ProductCard`, `CategoryFilterStrip`,
+  `FilterDrawer`, `ProductGallery`, `ProductInfo`, `StickyActionBar`, `Input`, `Button`, `Badge`,
+  `Skeleton`, …). Extract the interactive state (search box, filter drawer, sort control, gallery
+  index, quantity picker) into `"use client"` child components under `components/` that receive the
+  server-fetched data as props. Do not restyle anything; the visual result should look the same minus
+  the removals listed below.
+- Add `loading.tsx` (Suspense fallback using the existing `Skeleton` component) and `error.tsx` next
+  to the pages so a backend outage renders a readable message instead of an unhandled crash.
+  `not-found` behavior: `GET /products/<id>/` returns 404 with `{"error":{"code":"not_found",...}}`
+  for a missing or unpublished product — catch `ApiError` with `status === 404` in the PDP and call
+  Next's `notFound()`.
+
+Serializer → UI field mapping (read `api/catalog/serializers.py` to confirm; do not invent fields):
+- `ProductListSerializer` (list rows): `id`, `name`, `price` (a **decimal string** like `"28.00"` —
+  parse before arithmetic/formatting), `primary_image` (absolute URL or `null`), `stock_state`,
+  `seller_name`, `category: {id, name}`.
+- `ProductDetailSerializer` (PDP): `id`, `name`, `description`, `price`, `stock_state`,
+  `available_quantity`, `category: {id, name}`, `seller: {id, business_name, description}`,
+  `images: [{id, image, sort_order}]`, `created_at`.
+  **`available_quantity` is OMITTED from the JSON when stock is above the low-stock threshold (5).**
+  Treat `undefined` as "plenty in stock", never as 0.
+- `GET /categories/` returns a paginated page of `{id, name, slug}`.
+
+REMOVE from these pages (they render mock-only data with no backend behind them — the goal is that
+nothing on screen is fiction). Stop rendering/importing them; **do not delete the component files
+themselves**, a later step does that:
+- Home page: `StoriesStrip` and the `HeroCarousel` promo banners (`lib/mock/stories.ts`).
+- PDP: `VariantSelector` (the Product model has no variants), `SellerTrustCard` and `ReviewList`
+  (there is no review, rating, or trust-metric model anywhere in `api/catalog/models.py`).
+- `FilterDrawer` / sort controls: keep ONLY the filter dimensions the backend actually supports —
+  category, text search, and sort by price or newest. Drop any price-range slider, stock/availability
+  toggle, rating filter, or tag filter, since `ProductFilter` has no such fields and faking them
+  client-side would be wrong under pagination.
+
+Known consequence, accept it — do NOT try to work around it: product `name` and `description` come
+from the database in a single language, so localized product copy is gone. Keep the existing
+`useTranslation`/`LocaleContext` i18n for static UI chrome (labels, buttons, headings); just render
+product content as the API returns it.
+
+LEAVE UNTOUCHED: everything under `api/`, `lib/api/`, `lib/context/`, `lib/mock/` (no deletions),
+`types/`, `package.json`, `.env`, `.env.local`, and every page other than the three named above
+(cart, checkout, orders, profile, login, register, seller, notifications still run on mocks — a later
+step migrates them). Add no npm dependencies. If a shared component you edit is also used by a
+mock-driven page, keep that page compiling.
+
+`next.config.mjs`: add a remote image pattern for `{ protocol: 'http', hostname: 'localhost',
+port: '8000' }` so `next/image` accepts backend media URLs. Leave the existing `images.unsplash.com`
+entry in place for now — mock-driven pages still use it.
+</task>
+
+<verification_loop>
+The backend is running; verify against it, don't guess:
+  curl -s 'http://localhost:8000/api/products/?page_size=2'
+  curl -s 'http://localhost:8000/api/products/?search=olive&ordering=-price'
+  curl -s http://localhost:8000/api/products/12/
+  curl -s http://localhost:8000/api/categories/
+  curl -s http://localhost:8000/api/products/99999/     # 404 envelope
+Then run and make green before finishing — fix what they surface, do not just report it:
+  npm run build
+(Note: `npm run lint` is NOT usable in this repo — eslint is not installed and `next lint` prompts
+interactively. `next build` performs the type check. Do not install eslint.)
+Finally, start the dev server and actually load the pages, then stop it:
+  npm run dev   (then curl -s http://localhost:3000/ar | head -c 2000
+                 and  curl -s http://localhost:3000/ar/catalog?search=olive | head -c 2000
+                 and  curl -s http://localhost:3000/ar/products/12 | head -c 2000)
+Confirm the product names appear in the server-rendered HTML (that proves server-side fetching works),
+and that `grep -rn "lib/mock" "app/[locale]/page.tsx" "app/[locale]/catalog/page.tsx" "app/[locale]/products/[id]/page.tsx"` returns nothing.
+</verification_loop>
+
+<missing_context_gating>
+Do not guess backend shapes, field names, or query params. Everything must come from reading
+`api/catalog/serializers.py`, `api/catalog/views.py`, `api/catalog/filters.py`, `api/catalog/models.py`,
+or a live curl. If something cannot be determined, say so in your report instead of inventing it.
+</missing_context_gating>
+
+<action_safety>
+Scope strictly to migrating these three pages (plus the client child components they need, their
+loading/error files, and the one next.config.mjs image pattern). No unrelated refactors or renames, no
+restyling, no deleting mock files. Do NOT run `git add` or `git commit` — the orchestrator reviews and
+commits. Leave the work uncommitted in the working tree. Do not leave a dev server running.
+</action_safety>
+
+<structured_output_contract>
+End with a report in this exact shape:
+  1. What changed per page, and which new client child components you extracted and why
+  2. Files touched (full list, marking new vs modified)
+  3. Gate outcomes — paste the `npm run build` summary and the evidence that product names appear in
+     the server-rendered HTML for all three routes
+  4. Anything you removed that you think the user may want back, any backend contract you could not
+     determine, and anything you want decided before the next step (which rewrites AuthContext)
+</structured_output_contract>

@@ -1,0 +1,121 @@
+<task>
+Repo: /home/mahmoud/Desktop/p3 — a Next.js 15 App Router frontend ("Souqi" marketplace, TypeScript,
+Tailwind, `@/*` path alias to repo root) at the repo root, plus a complete Django 5 + DRF backend in
+`api/`. The two halves are NOT connected: the frontend renders entirely from mock fixtures in
+`lib/mock/*` and there is not one `fetch` call to the backend anywhere. This task is step 1 of a
+multi-step integration: build the HTTP client layer ONLY. Do not wire any page, component, or context
+to it yet — later steps do that.
+
+Create exactly two new files and change nothing else except `.env.example`-style docs if needed:
+
+**`lib/api/client.ts`**
+- `apiFetch<T>(path: string, init?: RequestInit): Promise<T>` — prefixes `process.env.NEXT_PUBLIC_API_URL`
+  (already set in `.env.local` to `http://localhost:8000/api`; `path` is like `/products/`), sets
+  `Content-Type: application/json` and `Accept: application/json`, and attaches
+  `Authorization: Bearer <access>` when an access token is stored.
+  - IMPORTANT: when `init.body` is a `FormData`, do NOT set `Content-Type` — the browser must set the
+    multipart boundary itself. A later step uploads product images through this function.
+- Error handling: every non-2xx response body from this backend is the envelope
+  `{"error": {"code": "...", "message": "...", "details": {...}}}`. Verified live example:
+  `{"error":{"code":"not_authenticated","message":"Authentication credentials were not provided.","details":{}}}`
+  Parse it and throw `class ApiError extends Error` carrying `code: string`, `message: string`,
+  `details: unknown` and `status: number`, so callers can branch on codes like `insufficient_stock`,
+  `multi_seller_cart`, `cart_has_issues`, `account_suspended`, `validation_error`,
+  `invalid_transition`, `already_cancelled`, `ai_unavailable`. If the body is not JSON or not that
+  shape, still throw an `ApiError` with a sane fallback code (e.g. `http_error`) — never let a
+  non-2xx response resolve successfully.
+- 401 → refresh once: `POST /auth/refresh/` with `{"refresh": "<stored refresh token>"}` (this is
+  django-rest-framework-simplejwt's `TokenRefreshView`; it returns `{"access": "..."}` and may also
+  return a rotated `"refresh"` — store it if present). On success, replay the original request once
+  with the new access token. On failure, clear tokens and redirect to the login page. Do NOT retry
+  more than once, and do NOT attempt a refresh for the `/auth/login/`, `/auth/register/` or
+  `/auth/refresh/` calls themselves. Guard concurrent 401s with a single shared in-flight refresh
+  promise so N parallel requests trigger exactly one refresh.
+- Token storage helpers: `getTokens()`, `setTokens({access, refresh})`, `clearTokens()` backed by
+  `localStorage`. Keys should follow the existing convention in `lib/context/AuthContext.tsx` — read
+  that file's `STORAGE_KEYS` and match its naming style. All of these must be safe to import from a
+  Server Component module graph: guard every `localStorage`/`window` access with a
+  `typeof window === 'undefined'` check and return null/no-op on the server. The public catalog is
+  fetched server-side in a later step through this same module, so it must not crash on the server.
+- Pagination: every list endpoint returns `{count, next, previous, results}`. Export
+  `type Page<T> = { count: number; next: string | null; previous: string | null; results: T[] }`
+  and a `listResults<T>(page: Page<T>): T[]` helper. Verified live example:
+  `{"count":12,"next":"http://localhost:8000/api/products/?page=2&page_size=1","previous":null,"results":[...]}`
+
+**`lib/api/resources.ts`** — thin typed functions over `apiFetch`, ONE file, no per-resource modules,
+no classes, no client-side caching layer, no new npm dependencies (native `fetch` only; do not add
+react-query/axios/swr). Cover these real backend routes (all relative to `/api`, all verified from
+`api/*/urls.py` — read those files to confirm before writing):
+
+  auth:     POST /auth/register/, POST /auth/login/, POST /auth/refresh/, GET /auth/me/
+  catalog:  GET /products/ (query params: search, category, seller, ordering (price|created_at|-price|-created_at), page, page_size — confirm in `api/catalog/filters.py`),
+            GET /products/<id>/, GET /categories/
+  cart:     GET /cart/, POST /cart/items/, PATCH /cart/items/<id>/, DELETE /cart/items/<id>/, DELETE /cart/
+  checkout: POST /checkout/
+  orders:   GET /orders/, GET /orders/<id>/, POST /orders/<id>/cancel/
+  seller:   GET|POST /seller/products/, GET|PATCH|DELETE /seller/products/<id>/,
+            POST /seller/products/<id>/publish/,
+            POST /seller/products/<id>/images/ (multipart), DELETE /seller/products/<id>/images/<image_id>/,
+            GET /seller/orders/, GET /seller/orders/<id>/, POST /seller/orders/<id>/transition/,
+            GET /seller/dashboard/
+  ai:       POST /ai/suggest-description/, POST /ai/suggest-tags/, POST /ai/moderate/,
+            POST /ai/suggestions/<id>/accept/, POST /ai/suggestions/<id>/reject/
+  admin:    GET /admin/metrics/, GET /admin/orders/, GET /admin/ai-suggestions/,
+            GET|PATCH /admin/products/<id>/, GET|PATCH /admin/users/<id>/
+
+Two contract details that are easy to get wrong — follow the CODE, not `API.md`:
+1. The checkout request body key for acknowledging changed prices is **`price_acknowledgements`**, an
+   array of `{product_id, new_price}`. `api/orders/views.py` reads exactly that key (search it to
+   confirm). `API.md` calls it `acknowledged_issues` — the doc is WRONG. Do NOT "fix" it to match the
+   doc, and do not leave a comment claiming the doc is right.
+2. `POST /checkout/` requires an `Idempotency-Key` request header. `checkout()` must accept the key as
+   an explicit argument from the caller (so a retry of the same attempt reuses it) rather than
+   generating one internally per call.
+
+Derive request/response TypeScript types from the actual DRF serializers in
+`api/catalog/serializers.py`, `api/orders/serializers.py`, `api/accounts/serializers.py`,
+`api/ai/serializers.py` — read them. Put these API types in `lib/api/types.ts` (a third file is fine
+if it keeps `resources.ts` readable) or inline in `resources.ts`; do NOT edit the existing `types/*.ts`
+files in this step — a later step reconciles those. Note `ProductDetailSerializer.available_quantity`
+is omitted when stock is above the low-stock threshold, so type it optional and never treat
+`undefined` as 0.
+
+LEAVE UNTOUCHED: everything under `api/`, `lib/mock/`, `lib/context/`, `app/`, `components/`,
+`types/`, `tests/`, `package.json`, `next.config.mjs`, `.env`, `.env.local`. This step adds files
+only. Do not delete any mock file, do not start migrating any page.
+</task>
+
+<verification_loop>
+Run these before finishing and fix anything they surface — do not just report failures:
+  npm run build
+  npm run lint
+The Django backend is already running at http://localhost:8000 with seeded data, so you can and should
+sanity-check your assumptions with curl, e.g.:
+  curl -s 'http://localhost:8000/api/products/?page_size=1'
+  curl -s http://localhost:8000/api/orders/          # 401 envelope
+  curl -s -X POST http://localhost:8000/api/auth/login/ -H 'Content-Type: application/json' \
+       -d '{"email":"omar@souqi.com","password":"password123"}'
+Afterwards confirm `git status --short` shows ONLY new files under `lib/api/`.
+</verification_loop>
+
+<missing_context_gating>
+Do not guess backend shapes. Every route, field name and error code you write must come from reading
+`api/**/urls.py`, `api/**/views.py`, `api/**/serializers.py`, `api/common/errors.py`, or from a live
+curl against the running server. If something genuinely cannot be determined, say so explicitly in
+your report instead of inventing it.
+</missing_context_gating>
+
+<action_safety>
+Keep changes strictly scoped to creating the `lib/api/` module. No unrelated refactors, renames, or
+cleanup. Add no npm dependencies. Do NOT run `git add` or `git commit` — the orchestrator reviews and
+commits. Leave the work uncommitted in the working tree.
+</action_safety>
+
+<structured_output_contract>
+End with a report in this exact shape:
+  1. What you built and the key design decisions (token storage, refresh strategy, error typing)
+  2. Files touched (full list)
+  3. Gate outcomes — paste the actual `npm run build` and `npm run lint` output summary
+  4. Any backend contract you could not determine, anything you deviated on, and anything you want
+     decided before the next step wires this into the UI
+</structured_output_contract>
