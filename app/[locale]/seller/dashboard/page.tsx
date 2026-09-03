@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowLeft, Plus, Sparkles, Store, TrendingUp, Package } from "lucide-react";
 import { useLocale } from "@/lib/context/LocaleContext";
+import { useAuth } from "@/lib/context/AuthContext";
 import { SellerStatTiles } from "@/components/seller/SellerStatTiles";
 import { ProductManagementTable } from "@/components/seller/ProductManagementTable";
 import { AiAssistantPanel } from "@/components/seller/AiAssistantPanel";
@@ -15,8 +17,20 @@ import type { Product } from "@/types/catalog";
 
 export default function SellerDashboardPage() {
   const { locale, direction } = useLocale();
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("inventory");
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace(`/${locale}/login`);
+    }
+  }, [isLoading, user, locale, router]);
+
+  if (isLoading || !user) {
+    return null;
+  }
 
   return (
     <div className="w-full max-w-[1700px] 2xl:max-w-[1920px] mx-auto pb-24 md:pb-12 animate-in fade-in duration-200">

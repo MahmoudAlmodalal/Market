@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogIn, ArrowRight, ArrowLeft, Mail, Lock, Store, ShieldCheck } from "lucide-react";
+import { LogIn, ArrowRight, ArrowLeft, Mail, Lock } from "lucide-react";
 import { useLocale, useTranslation } from "@/lib/context/LocaleContext";
 import { useAuth } from "@/lib/context/AuthContext";
+import { ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -13,13 +14,20 @@ import { Card } from "@/components/ui/Card";
 export default function LoginPage() {
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
-  const { login } = useAuth();
+  const { user, isLoading: authLoading, login } = useAuth();
   const router = useRouter();
 
-  const [email, setEmail] = useState("sara@souqi.market");
+  const [email, setEmail] = useState("omar@souqi.com");
   const [password, setPassword] = useState("password123");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(`/${locale}/profile`);
+    }
+  }, [authLoading, user, locale, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,14 +35,33 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const success = await login(email, password);
-      if (success) {
-        router.push(`/${locale}/profile`);
+      await login(email, password);
+      router.push(`/${locale}/profile`);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        if (err.code === "invalid_credentials") {
+          setError(
+            locale === "ar"
+              ? "بيانات الدخول غير صحيحة. يرجى التحقق من البريد الإلكتروني وكلمة المرور."
+              : "Invalid email or password."
+          );
+        } else if (err.code === "account_suspended") {
+          setError(
+            locale === "ar"
+              ? "هذا الحساب معلق. يرجى التواصل مع إدارة المنصة."
+              : "This account has been suspended. Please contact support."
+          );
+        } else {
+          setError(
+            err.message ||
+              (locale === "ar" ? "حدث خطأ أثناء تسجيل الدخول" : "Login error occurred")
+          );
+        }
       } else {
-        setError(locale === "ar" ? "بيانات الدخول غير صحيحة" : "Invalid login credentials");
+        setError(
+          locale === "ar" ? "حدث خطأ أثناء تسجيل الدخول" : "Login error occurred"
+        );
       }
-    } catch (err) {
-      setError(locale === "ar" ? "حدث خطأ أثناء تسجيل الدخول" : "Login error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +131,13 @@ export default function LoginPage() {
               fullWidth
               loading={isLoading}
               className="mt-2 min-h-[44px] font-bold text-sm sm:text-base"
-              rightIcon={direction === "rtl" ? <ArrowLeft className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
+              rightIcon={
+                direction === "rtl" ? (
+                  <ArrowLeft className="w-5 h-5" />
+                ) : (
+                  <ArrowRight className="w-5 h-5" />
+                )
+              }
             >
               {locale === "ar" ? "دخول" : "Sign In"}
             </Button>
@@ -115,26 +148,36 @@ export default function LoginPage() {
             <span className="text-[11px] sm:text-xs text-neutral-400 text-center font-medium">
               {locale === "ar" ? "حسابات تجريبية سريعة" : "Quick Demo Accounts"}
             </span>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  setEmail("sara@souqi.market");
+                  setEmail("omar@souqi.com");
                   setPassword("password123");
                 }}
-                className="px-3 py-2 min-h-[44px] rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 active:scale-98 transition-all flex items-center justify-center text-center"
+                className="px-2 py-2 min-h-[44px] rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 active:scale-98 transition-all flex items-center justify-center text-center"
               >
-                {locale === "ar" ? "مشتري (سارة)" : "Customer (Sara)"}
+                {locale === "ar" ? "مشتري (عمر)" : "Customer (Omar)"}
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setEmail("yasmeen@souqi.market");
+                  setEmail("sara@souqi.com");
                   setPassword("password123");
                 }}
-                className="px-3 py-2 min-h-[44px] rounded-xl border border-brand-200 text-xs font-semibold text-brand-600 bg-brand-50/50 hover:bg-brand-50 active:scale-98 transition-all flex items-center justify-center text-center"
+                className="px-2 py-2 min-h-[44px] rounded-xl border border-brand-200 text-xs font-semibold text-brand-600 bg-brand-50/50 hover:bg-brand-50 active:scale-98 transition-all flex items-center justify-center text-center"
               >
-                {locale === "ar" ? "تاجر (الياسمين)" : "Seller (Yasmeen)"}
+                {locale === "ar" ? "تاجر (سارة)" : "Seller (Sara)"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("admin@souqi.com");
+                  setPassword("password123");
+                }}
+                className="px-2 py-2 min-h-[44px] rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 active:scale-98 transition-all flex items-center justify-center text-center"
+              >
+                {locale === "ar" ? "مدير (Admin)" : "Admin"}
               </button>
             </div>
           </div>
@@ -145,7 +188,10 @@ export default function LoginPage() {
           <span>
             {locale === "ar" ? "ليس لديك حساب بعد؟" : "Don't have an account yet?"}{" "}
           </span>
-          <Link href={`/${locale}/register`} className="font-bold text-brand-500 hover:underline">
+          <Link
+            href={`/${locale}/register`}
+            className="font-bold text-brand-500 hover:underline"
+          >
             {locale === "ar" ? "إنشاء حساب جديد" : "Create an Account"}
           </Link>
         </div>

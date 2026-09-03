@@ -6,8 +6,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTranslation, useLocale } from "@/lib/context/LocaleContext";
 import { useCart } from "@/lib/context/CartContext";
-import { getMockOrders, INITIAL_MOCK_ORDERS } from "@/lib/mock/orders";
-import { getProductById } from "@/lib/mock/products";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -54,12 +52,10 @@ export function OrderHistoryList({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Load orders safely without hydration mismatch
-  const [clientOrders, setClientOrders] = useState<Order[]>(propOrders || INITIAL_MOCK_ORDERS);
+  const [clientOrders, setClientOrders] = useState<Order[]>(propOrders || []);
 
   useEffect(() => {
-    if (!propOrders) {
-      setClientOrders(getMockOrders());
-    } else {
+    if (propOrders) {
       setClientOrders(propOrders);
     }
   }, [propOrders]);
@@ -103,10 +99,8 @@ export function OrderHistoryList({
       let addedCount = 0;
 
       for (const item of order.items) {
-        // Try finding real product or build fallback from snapshot
-        let product: Product | undefined = item.product_id
-          ? getProductById(item.product_id, locale)
-          : undefined;
+        // Build fallback product from snapshot
+        let product: Product | undefined = undefined;
 
         if (!product) {
           product = {

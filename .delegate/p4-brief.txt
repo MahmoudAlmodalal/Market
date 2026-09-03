@@ -1,0 +1,179 @@
+<task>
+Repo: /home/mahmoud/Desktop/p3 — Next.js 15 App Router frontend ("Souqi" marketplace, TypeScript,
+Tailwind, `@/*` alias to repo root) plus a Django 5 + DRF backend in `api/` ALREADY RUNNING at
+http://localhost:8000 with seeded data.
+
+Previous steps: built `lib/api/` (typed HTTP client — **read `lib/api/client.ts`, `resources.ts`,
+`types.ts` first**), migrated the public catalog pages to server-side data, and rewrote
+`lib/context/AuthContext.tsx` to use real JWT auth (**read it — you will need `useAuth`**).
+
+YOUR TASK: put the cart, checkout and orders on the real backend.
+
+## 1. `lib/context/CartContext.tsx` — the big one
+
+It is currently ~700 lines of local simulation: it seeds `INITIAL_DEMO_CART`, recomputes totals in
+`recalculateCartState()`, hardcodes a delivery fee, and validates vouchers against `MOCK_VOUCHERS`.
+Read it fully first.
+
+**The server already does all of that work.** Every cart mutation endpoint returns the complete cart
+body, so for a logged-in user each mutation collapses to `setCart(await addCartItem(...))`. Delete
+`recalculateCartState` and the local total/stock/issue logic entirely — do NOT reimplement it.
+
+The cart response shape, built by `render_cart_response` in `api/orders/views.py` (READ IT, do not
+trust this summary alone):
+```
+{ "id": 3, "seller": {"id": 1, "business_name": "..."} | null,
+  "items": [ { "id": 12, "product_id": 5, "name": "...", "unit_price": "28.00",
+               "quantity": 2, "line_total": "56.00", "stock_state": "available",
+               "issues": [ {"code": "...", "message": "...", "details": {...}} ] } ],
+  "subtotal": "56.00", "total": "56.00" }
+```
+Facts that contradict common assumptions — the CODE is authoritative:
+- There is **no `has_blocking_issues` top-level field**. Derive it yourself:
+  `items.some(i => i.issues.length > 0)`. Per-item issue codes are `price_changed`,
+  `insufficient_stock`, `product_unavailable` (see `revalidate_cart` in `api/orders/services.py`).
+- **`total` always equals `subtotal`.** There is no delivery fee, tax or discount anywhere in the
+  backend. Remove the hardcoded `deliveryFeeNum = 15.0`.
+- An empty cart returns `items: []`, `seller: null`, `subtotal`/`total` `"0.00"`.
+- **`DELETE /cart/items/<id>/` returns 204 with NO body** — you must re-fetch `GET /cart/` after a
+  delete. `POST /cart/items/` returns 201 *with* the cart body; `PATCH /cart/items/<id>/` returns 200
+  *with* the cart body. `DELETE /cart/` returns 204.
+- `PATCH /cart/items/<id>/` also resets the stored price to the current price, so a `price_changed`
+  issue on that line clears as a side effect of a quantity update.
+- All cart endpoints require `IsCustomer` — a seller or admin account gets a 403.
+
+Error codes to surface as readable UI, never as a crash (from `api/orders/views.py`):
+- `multi_seller_cart` (**409**) on `POST /cart/items/` when the cart already holds another seller's
+  product. `details.current_seller = {id, business_name}`. The existing conflict dialog in the cart
+  UI should render this with the real seller name, offering "clear cart and add this instead"
+  (`DELETE /cart/` then retry the add) or "keep current cart".
+- `insufficient_stock` (**400** on cart add/update) with `details.available` — note `available` is
+  **omitted** when stock is above the low-stock threshold, so treat it as optional.
+- `product_not_purchasable` (400) — product missing, unpublished, or seller inactive.
+- `invalid_quantity` (400).
+
+**Guest cart.** A logged-out visitor has no server cart (the endpoints are auth-only). Keep the
+existing localStorage cart for that case, and on successful login **replay it into the server cart**
+item by item via `POST /cart/items/`. The replay must handle real failures rather than silently losing
+items:
+- `multi_seller_cart` → the server cart wins by default; collect the dropped lines and report them.
+- `insufficient_stock` / `product_not_purchasable` → skip that line, collect it.
+- Afterwards, clear the local guest cart and show ONE summary toast (the app has a ToastProvider —
+  find and use it) naming what could not be transferred. Silent data loss is not acceptable here.
+
+## 2. Checkout — `app/[locale]/checkout/page.tsx`
+
+`POST /checkout/` with body `{contact_name, contact_phone, delivery_address, price_acknowledgements}`
+and header `Idempotency-Key`. Read `CheckoutView` in `api/orders/views.py` and `CheckoutSerializer` in
+`api/orders/serializers.py`.
+- The **`Idempotency-Key` must be a valid UUID** (`uuid.UUID(...)` is parsed server-side; a non-UUID
+  gets `missing_idempotency_key` 400). Generate it with `crypto.randomUUID()` **once per checkout
+  attempt**, hold it in a ref, and reuse the same key across retries of that attempt. Disable the
+  confirm button while the request is in flight.
+- **201** = order created. **200** = this exact key already created an order and the backend replayed
+  it — treat both identically and go to the confirmation screen. Both return
+  `CustomerOrderDetailSerializer`.
+- The price-acknowledgement key is **`price_acknowledgements`**, an array of `{product_id, new_price}`.
+  `API.md` calls it `acknowledged_issues` — **the doc is wrong, the code wins.** Do not "fix" it to
+  match the doc. The acknowledged `new_price` must equal the server's current price exactly or
+  checkout fails again.
+- **409 `cart_has_issues`**: `details` is a **single issue object**, NOT an array —
+  `{"issue": "price_changed", "product_id": 5, "old_price": "28.00", "new_price": "30.00"}` or
+  `{"issue": "product_unavailable", "product_id": 5}`. Only `price_changed` is acknowledgeable: show
+  the old→new price and an "accept new price" action that retries checkout with that product in
+  `price_acknowledgements`. `product_unavailable` must be resolved by editing the cart.
+- **409 `insufficient_stock`** at checkout (note: 409 here, 400 on the cart endpoints) with
+  `details.product_id` and optional `details.available` — send the user back to the cart to fix it.
+- 400 `empty_cart`.
+
+REMOVE from checkout (no backend, and these silently misreport money):
+- the whole voucher/discount input and `MOCK_VOUCHERS`,
+- the hardcoded delivery fee,
+- `components/checkout/DeliveryTimeSlotPicker.tsx` (stop rendering it; do not delete the file),
+- `components/checkout/AddressSelector.tsx` / `NewAddressModal.tsx` / `PaymentMethodSelector.tsx` —
+  there is no Address or PaymentMethod model in `api/`. Checkout collects `contact_name`,
+  `contact_phone` and `delivery_address` as **plain form fields** (max lengths 120 / 30 / 500).
+The confirmation screen must show the totals from the checkout response body, so what the user sees
+matches the created order exactly.
+
+## 3. Orders
+
+- `app/[locale]/orders/page.tsx` + `components/profile/OrderHistoryList.tsx` → `GET /orders/`
+  (paginated: `{count, next, previous, results}`; `CustomerOrderListSerializer` gives
+  `id, order_number, status, total, item_count, seller, created_at`).
+- `app/[locale]/orders/[id]/page.tsx` → `GET /orders/<id>/` (`CustomerOrderDetailSerializer`:
+  adds `items[]`, `subtotal`, `contact_*`, `delivery_address`, and `timeline[]`).
+- `components/orders/OrderProgressStepper.tsx` must be driven by the real
+  **`timeline[]`** (`OrderStatusHistorySerializer` → `{from_status, to_status, created_at}`), not by a
+  hardcoded step list.
+- `items[]` uses **snapshot** fields: `product_id, product_name_snapshot, unit_price_snapshot,
+  quantity, line_total`. Render the snapshot name/price, not a live product lookup — that is the point
+  of an order record.
+- `POST /orders/<id>/cancel/` for `components/orders/CancelOrderModal.tsx`; handle `invalid_transition`
+  and `already_cancelled` as readable messages. Check `api/orders/state.py` for which statuses may be
+  cancelled.
+
+Working credentials (password `password123`): omar@souqi.com (customer), sara@souqi.com (seller),
+admin@souqi.com (admin). Cart/checkout/orders need the **customer** account.
+
+LEAVE UNTOUCHED: everything under `api/`, `lib/api/`, `lib/context/AuthContext.tsx`,
+`lib/context/NotificationContext.tsx`, `lib/mock/` (no deletions — a later step sweeps them), the
+public catalog pages, the seller dashboard (a later step), `package.json`, `next.config.mjs`, `.env`,
+`.env.local`. Add no npm dependencies. Do not restyle — this is a data-source change and the pages
+should look the same minus the removed sections. Every other page must keep compiling.
+</task>
+
+<verification_loop>
+Verify against the running backend rather than guessing. Get a token first:
+  TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login/ -H 'Content-Type: application/json' \
+    -d '{"email":"omar@souqi.com","password":"password123"}' | grep -o '"access":"[^"]*"' | cut -d'"' -f4)
+  curl -s http://localhost:8000/api/cart/ -H "Authorization: Bearer $TOKEN"
+  curl -s -X POST http://localhost:8000/api/cart/items/ -H "Authorization: Bearer $TOKEN" \
+    -H 'Content-Type: application/json' -d '{"product_id":1,"quantity":1}'
+  # a product from a DIFFERENT seller -> 409 multi_seller_cart
+  # quantity above stock -> 400 insufficient_stock
+  curl -s -X POST http://localhost:8000/api/checkout/ -H "Authorization: Bearer $TOKEN" \
+    -H 'Content-Type: application/json' -H "Idempotency-Key: $(uuidgen)" \
+    -d '{"contact_name":"Omar","contact_phone":"0599000000","delivery_address":"Gaza"}'
+  # repeat that exact command with the SAME key -> 200 replay, not a second order
+  curl -s http://localhost:8000/api/orders/ -H "Authorization: Bearer $TOKEN"
+Then run this and make it green — fix what it surfaces, do not just report it:
+  npm run build
+IMPORTANT: run every command in the FOREGROUND and wait for it. Do NOT background the build or a dev
+server and then end your turn — an earlier run did that and produced no usable report.
+(`npm run lint` is unusable here: eslint is not installed and `next lint` prompts interactively.
+`next build` does the type check. Do not install eslint.)
+Finally confirm `grep -rn "lib/mock" lib/context/CartContext.tsx app/\[locale\]/cart app/\[locale\]/checkout app/\[locale\]/orders components/checkout components/orders` returns nothing.
+</verification_loop>
+
+<completeness_contract>
+Finish the whole surface — cart, checkout, and both orders pages. Do not stop at the cart and leave
+checkout half-wired. If one part cannot be completed correctly, complete everything else and say
+explicitly in your report what you left and why.
+</completeness_contract>
+
+<missing_context_gating>
+Do not guess backend shapes, field names, status codes, or error codes. Everything must come from
+reading `api/orders/views.py`, `api/orders/serializers.py`, `api/orders/services.py`,
+`api/orders/state.py`, `api/common/errors.py`, or a live curl. Where this brief states a fact, verify
+it in the code — if you find the brief is wrong about something, follow the code and say so in your
+report.
+</missing_context_gating>
+
+<action_safety>
+Scope strictly to cart, checkout and orders. No unrelated refactors, renames, or restyling. No mock
+file deletions. Do NOT run `git add` or `git commit` — the orchestrator reviews and commits. Leave the
+work uncommitted in the working tree. Do not leave a dev server running.
+</action_safety>
+
+<structured_output_contract>
+End your turn with a report in this exact shape — do not end the turn while a command is still running:
+  1. What changed in CartContext (and roughly how many lines you deleted), checkout, and orders
+  2. How you handled the guest-cart replay, including each failure path
+  3. Any place where you found this brief's description of the backend to be WRONG, with the evidence
+  4. Files touched (full list, marking new vs modified)
+  5. Gate outcome — paste the `npm run build` summary, plus the curl evidence that the same
+     Idempotency-Key twice yields one order
+  6. Anything you removed that the user may want back, and anything you want decided before the next
+     step (which wires the seller surface)
+</structured_output_contract>

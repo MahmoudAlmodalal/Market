@@ -3,44 +3,33 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useTranslation, useLocale } from "@/lib/context/LocaleContext";
+import { useLocale } from "@/lib/context/LocaleContext";
 import { useAuth } from "@/lib/context/AuthContext";
 import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
-import type { User, LoyaltyTier } from "@/types/user";
+import type { AuthUser } from "@/lib/api/types";
 import {
-  User as UserIcon,
-  Phone,
   Mail,
-  Award,
-  Sparkles,
   Store,
-  ArrowLeft,
-  ArrowRight,
   ShieldCheck,
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
 
 export interface ProfileHeaderProps {
-  user?: User | null;
-  loyaltyTier?: LoyaltyTier;
+  user?: AuthUser | null;
   className?: string;
 }
 
 export function ProfileHeader({
   user: propUser,
-  loyaltyTier: propLoyaltyTier,
   className,
 }: ProfileHeaderProps) {
-  const { t, locale, direction } = useLocale();
+  const { locale, direction } = useLocale();
   const auth = useAuth();
   const user = propUser !== undefined ? propUser : auth?.user;
-  const loyaltyTier =
-    propLoyaltyTier !== undefined ? propLoyaltyTier : auth?.loyaltyTier;
-  const activeRole = auth?.activeRole || user?.role || "customer";
-  const isSeller = activeRole === "seller" || user?.role === "seller" || user?.role === "admin";
+  const isSeller = user?.role === "seller" || user?.role === "admin";
   const isRtl = direction === "rtl";
 
   // Initials computation
@@ -53,34 +42,19 @@ export function ProfileHeader({
 
   const initials = getInitials(user?.name);
 
-  // Loyalty badge style
-  const getTierColor = (tier?: string) => {
-    switch (tier) {
-      case "gold":
-        return {
-          bg: "bg-amber-500/10 text-amber-700 border-amber-300",
-          badge: "bg-gradient-to-r from-amber-500 to-yellow-600 text-white",
-          labelAr: "عضوية ذهبية (Gold)",
-          labelEn: "Gold Tier",
-        };
-      case "silver":
-        return {
-          bg: "bg-slate-500/10 text-slate-700 border-slate-300",
-          badge: "bg-gradient-to-r from-slate-400 to-slate-600 text-white",
-          labelAr: "عضوية فضية (Silver)",
-          labelEn: "Silver Tier",
-        };
-      default:
-        return {
-          bg: "bg-orange-500/10 text-orange-700 border-orange-300",
-          badge: "bg-gradient-to-r from-orange-400 to-orange-600 text-white",
-          labelAr: "عضوية برونزية (Bronze)",
-          labelEn: "Bronze Tier",
-        };
+  const roleLabel = (() => {
+    if (user?.role === "admin") {
+      return locale === "ar" ? "مدير النظام (Admin)" : "System Admin";
     }
-  };
-
-  const tierInfo = getTierColor(loyaltyTier?.tier);
+    if (user?.role === "seller") {
+      return locale === "ar"
+        ? "حساب تاجر معتمد (Seller)"
+        : "Verified Seller Account";
+    }
+    return locale === "ar"
+      ? "مشتري معتمد (Customer)"
+      : "Verified Customer";
+  })();
 
   return (
     <div
@@ -89,20 +63,12 @@ export function ProfileHeader({
         className
       )}
     >
-      {/* Top bar: Language toggle & Role indicator */}
+      {/* Top bar: Role indicator & Language toggle */}
       <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
         <div className="flex items-center gap-1.5">
           <Badge variant="brand" size="sm" className="font-bold">
             <ShieldCheck className="w-3.5 h-3.5 me-1" />
-            <span>
-              {activeRole === "seller"
-                ? locale === "ar"
-                  ? "حساب تاجر معتمد (Seller)"
-                  : "Verified Seller Account"
-                : locale === "ar"
-                ? "مشتري معتمد (Customer)"
-                : "Verified Customer"}
-            </span>
+            <span>{roleLabel}</span>
           </Badge>
         </div>
 
@@ -117,34 +83,17 @@ export function ProfileHeader({
         {/* Avatar / Initials */}
         <div className="relative w-16 h-16 rounded-full ring-2 ring-brand-100 p-0.5 shrink-0 bg-gradient-to-br from-brand-400 to-brand-600">
           <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center relative">
-            {user?.avatar ? (
-              <Image
-                src={user.avatar}
-                alt={user.name || "User Avatar"}
-                fill
-                className="object-cover"
-                sizes="64px"
-              />
-            ) : (
-              <div className="w-full h-full bg-brand-50 text-brand-600 font-bold text-lg flex items-center justify-center select-none">
-                {initials}
-              </div>
-            )}
+            <div className="w-full h-full bg-brand-50 text-brand-600 font-bold text-lg flex items-center justify-center select-none">
+              {initials}
+            </div>
           </div>
         </div>
 
-        {/* Name, Email, Phone */}
+        {/* Name, Email */}
         <div className="flex-1 min-w-0 space-y-1">
           <h2 className="text-base font-bold text-neutral-900 truncate leading-snug">
-            {user?.name || (locale === "ar" ? "مستخدم سوقي" : "Souqi Customer")}
+            {user?.name || (locale === "ar" ? "مستخدم سوقي" : "Souqi User")}
           </h2>
-
-          {user?.phone && (
-            <div className="flex items-center gap-1.5 text-xs text-neutral-500 tabular-nums">
-              <Phone className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-              <span>{user.phone}</span>
-            </div>
-          )}
 
           {user?.email && (
             <div className="flex items-center gap-1.5 text-xs text-neutral-500 truncate">
@@ -155,39 +104,7 @@ export function ProfileHeader({
         </div>
       </div>
 
-      {/* Loyalty Tier Mini Card */}
-      {loyaltyTier && (
-        <div className="bg-gradient-to-r from-amber-50/70 via-orange-50/50 to-neutral-50 rounded-xl p-3 border border-amber-200/60 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <Award className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-amber-950">
-                  {locale === "ar" ? tierInfo.labelAr : tierInfo.labelEn}
-                </span>
-              </div>
-              <p className="text-[11px] text-amber-800 font-medium">
-                {locale === "ar"
-                  ? `${loyaltyTier.points} نقطة مكافآت`
-                  : `${loyaltyTier.points} Reward Points`}
-              </p>
-            </div>
-          </div>
-
-          <div className="text-end">
-            <span className="text-[10px] font-semibold text-neutral-500 block">
-              {locale === "ar" ? "المستوى التالي" : "Next Tier"}
-            </span>
-            <span className="text-xs font-bold text-amber-900 tabular-nums">
-              {loyaltyTier.points}/{loyaltyTier.next_tier_points}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Seller Portal Quick CTA Banner if Seller */}
+      {/* Seller Portal Quick CTA Banner if Seller or Admin */}
       {isSeller && (
         <div className="pt-1">
           <Link

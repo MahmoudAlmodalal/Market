@@ -1,48 +1,86 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserPlus, ArrowRight, ArrowLeft, Mail, Lock, User, Phone, Store } from "lucide-react";
+import { UserPlus, ArrowRight, ArrowLeft, Mail, Lock, User } from "lucide-react";
 import { useLocale, useTranslation } from "@/lib/context/LocaleContext";
 import { useAuth } from "@/lib/context/AuthContext";
+import { ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
-import type { UserRole } from "@/types/user";
 
 export default function RegisterPage() {
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
-  const { register } = useAuth();
+  const { user, isLoading: authLoading, register } = useAuth();
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("customer");
+  const [role, setRole] = useState<"customer" | "seller">("customer");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(`/${locale}/profile`);
+    }
+  }, [authLoading, user, locale, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
+    setFieldErrors({});
+    setGeneralError(null);
 
     try {
-      if (register) {
-        const success = await register({ name, email, phone, role, password });
-        if (success) {
-          router.push(`/${locale}/profile`);
-          return;
-        }
-      }
+      await register({ name, email, password, role });
       router.push(`/${locale}/profile`);
-    } catch (err) {
-      setError(locale === "ar" ? "حدث خطأ أثناء إنشاء الحساب" : "Registration failed");
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        if (
+          err.code === "validation_error" &&
+          err.details &&
+          typeof err.details === "object"
+        ) {
+          const details = err.details as Record<string, string[] | string>;
+          const normalizedErrors: Record<string, string[]> = {};
+          for (const [k, v] of Object.entries(details)) {
+            normalizedErrors[k] = Array.isArray(v) ? v : [String(v)];
+          }
+          setFieldErrors(normalizedErrors);
+
+          if (normalizedErrors.non_field_errors?.length) {
+            setGeneralError(normalizedErrors.non_field_errors.join(" "));
+          }
+        } else {
+          setGeneralError(
+            err.message ||
+              (locale === "ar" ? "فشل إنشاء الحساب" : "Registration failed")
+          );
+        }
+      } else {
+        setGeneralError(
+          locale === "ar" ? "حدث خطأ أثناء إنشاء الحساب" : "Registration failed"
+        );
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const clearFieldError = (fieldName: string) => {
+    if (fieldErrors[fieldName]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[fieldName];
+        return next;
+      });
     }
   };
 
@@ -67,36 +105,52 @@ export default function RegisterPage() {
         {/* Register Card */}
         <Card className="p-5 bg-white border border-neutral-200/90 rounded-2xl shadow-soft-sm">
           <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-            {error && (
+            {generalError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-semantic-error font-medium text-start">
-                {error}
+                {generalError}
               </div>
             )}
 
             {/* Account Type Selector */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-100/80 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setRole("customer")}
-                className={`py-2 text-xs font-bold rounded-lg transition-all ${
-                  role === "customer"
-                    ? "bg-white text-neutral-900 shadow-sm"
-                    : "text-neutral-500 hover:text-neutral-700"
-                }`}
-              >
-                {locale === "ar" ? "مشتري" : "Customer"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole("seller")}
-                className={`py-2 text-xs font-bold rounded-lg transition-all ${
-                  role === "seller"
-                    ? "bg-white text-brand-600 shadow-sm"
-                    : "text-neutral-500 hover:text-neutral-700"
-                }`}
-              >
-                {locale === "ar" ? "تاجر / صانع" : "Seller / Maker"}
-              </button>
+            <div className="flex flex-col gap-1 text-start">
+              <label className="text-xs font-semibold text-neutral-700">
+                {locale === "ar" ? "نوع الحساب" : "Account Type"}
+              </label>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-100/80 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRole("customer");
+                    clearFieldError("role");
+                  }}
+                  className={`py-2 text-xs font-bold rounded-lg transition-all ${
+                    role === "customer"
+                      ? "bg-white text-neutral-900 shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-700"
+                  }`}
+                >
+                  {locale === "ar" ? "مشتري" : "Customer"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRole("seller");
+                    clearFieldError("role");
+                  }}
+                  className={`py-2 text-xs font-bold rounded-lg transition-all ${
+                    role === "seller"
+                      ? "bg-white text-brand-600 shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-700"
+                  }`}
+                >
+                  {locale === "ar" ? "تاجر / صانع" : "Seller / Maker"}
+                </button>
+              </div>
+              {fieldErrors.role?.map((msg, i) => (
+                <p key={i} className="text-xs text-red-500 font-medium mt-0.5">
+                  {msg}
+                </p>
+              ))}
             </div>
 
             <div className="flex flex-col gap-1 text-start">
@@ -107,10 +161,18 @@ export default function RegisterPage() {
                 type="text"
                 required
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  clearFieldError("name");
+                }}
                 placeholder={locale === "ar" ? "سارة الأحمد" : "Sara Al-Ahmad"}
                 startIcon={<User className="w-4 h-4 text-neutral-400" />}
               />
+              {fieldErrors.name?.map((msg, i) => (
+                <p key={i} className="text-xs text-red-500 font-medium mt-0.5">
+                  {msg}
+                </p>
+              ))}
             </div>
 
             <div className="flex flex-col gap-1 text-start">
@@ -121,23 +183,18 @@ export default function RegisterPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  clearFieldError("email");
+                }}
                 placeholder="sara@example.com"
                 startIcon={<Mail className="w-4 h-4 text-neutral-400" />}
               />
-            </div>
-
-            <div className="flex flex-col gap-1 text-start">
-              <label className="text-xs font-semibold text-neutral-700">
-                {locale === "ar" ? "رقم الهاتف" : "Phone Number"}
-              </label>
-              <Input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+970 59 912 3456"
-                startIcon={<Phone className="w-4 h-4 text-neutral-400" />}
-              />
+              {fieldErrors.email?.map((msg, i) => (
+                <p key={i} className="text-xs text-red-500 font-medium mt-0.5">
+                  {msg}
+                </p>
+              ))}
             </div>
 
             <div className="flex flex-col gap-1 text-start">
@@ -148,10 +205,18 @@ export default function RegisterPage() {
                 type="password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearFieldError("password");
+                }}
                 placeholder="••••••••"
                 startIcon={<Lock className="w-4 h-4 text-neutral-400" />}
               />
+              {fieldErrors.password?.map((msg, i) => (
+                <p key={i} className="text-xs text-red-500 font-medium mt-0.5">
+                  {msg}
+                </p>
+              ))}
             </div>
 
             <Button
@@ -161,7 +226,13 @@ export default function RegisterPage() {
               fullWidth
               loading={isLoading}
               className="mt-2"
-              rightIcon={direction === "rtl" ? <ArrowLeft className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
+              rightIcon={
+                direction === "rtl" ? (
+                  <ArrowLeft className="w-5 h-5" />
+                ) : (
+                  <ArrowRight className="w-5 h-5" />
+                )
+              }
             >
               {locale === "ar" ? "إنشاء الحساب" : "Register"}
             </Button>
@@ -173,7 +244,10 @@ export default function RegisterPage() {
           <span>
             {locale === "ar" ? "لديك حساب بالفعل؟" : "Already have an account?"}{" "}
           </span>
-          <Link href={`/${locale}/login`} className="font-bold text-brand-500 hover:underline">
+          <Link
+            href={`/${locale}/login`}
+            className="font-bold text-brand-500 hover:underline"
+          >
             {locale === "ar" ? "تسجيل الدخول" : "Sign In"}
           </Link>
         </div>

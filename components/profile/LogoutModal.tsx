@@ -6,7 +6,7 @@ import { useLocale } from "@/lib/context/LocaleContext";
 import { useAuth } from "@/lib/context/AuthContext";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { LogOut, AlertCircle } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 export interface LogoutModalProps {
   isOpen: boolean;
@@ -20,10 +20,9 @@ export function LogoutModal({ isOpen, onClose, onConfirm }: LogoutModalProps) {
   const { logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
       logout();
       if (onConfirm) {
         onConfirm();

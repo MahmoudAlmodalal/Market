@@ -2,6 +2,8 @@
 
 import React, { use, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/context/AuthContext";
 import {
   ArrowRight,
   ArrowLeft,
@@ -52,6 +54,14 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const { t } = useTranslation();
   const isRtl = direction === "rtl";
   const { success, info } = useToast();
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace(`/${locale}/login`);
+    }
+  }, [isLoading, user, locale, router]);
 
   const orderId = parseInt(resolvedParams.id, 10);
   const initialOrder =
@@ -252,6 +262,10 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       return order.created_at;
     }
   })();
+
+  if (isLoading || !user) {
+    return null;
+  }
 
   return (
     <div className="w-full max-w-6xl xl:max-w-7xl mx-auto pb-24 md:pb-16 animate-in fade-in duration-200">

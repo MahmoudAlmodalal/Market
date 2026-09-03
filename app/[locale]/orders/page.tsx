@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowLeft, ShoppingBag } from "lucide-react";
 import { useLocale, useTranslation } from "@/lib/context/LocaleContext";
+import { useAuth } from "@/lib/context/AuthContext";
 import { OrderHistoryList } from "@/components/profile/OrderHistoryList";
 import { Button } from "@/components/ui/Button";
 import { getMockOrders, INITIAL_MOCK_ORDERS } from "@/lib/mock/orders";
@@ -12,11 +14,23 @@ import type { Order } from "@/types/order";
 export default function OrdersPage() {
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>(INITIAL_MOCK_ORDERS);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace(`/${locale}/login`);
+    }
+  }, [isLoading, user, locale, router]);
 
   useEffect(() => {
     setOrders(getMockOrders());
   }, []);
+
+  if (isLoading || !user) {
+    return null;
+  }
 
   return (
     <div className="w-full max-w-6xl xl:max-w-7xl mx-auto pb-24 md:pb-12 animate-in fade-in duration-200">
