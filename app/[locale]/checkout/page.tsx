@@ -192,15 +192,21 @@ export default function CheckoutPage() {
   // 1. Loading Skeleton State
   if (isLoading) {
     return (
-      <div className="w-full min-h-screen px-4 pt-4 pb-28 flex flex-col gap-4 max-w-[430px] mx-auto">
+      <div className="w-full min-h-screen px-3 sm:px-6 lg:px-8 xl:px-12 pt-4 pb-28 flex flex-col gap-4 max-w-[1600px] 2xl:max-w-[1800px] mx-auto">
         <div className="flex items-center gap-3">
           <Skeleton className="w-9 h-9 rounded-xl" />
           <Skeleton className="h-6 w-32 rounded-lg" />
         </div>
-        <Skeleton className="h-44 w-full rounded-2xl" />
-        <Skeleton className="h-32 w-full rounded-2xl" />
-        <Skeleton className="h-36 w-full rounded-2xl" />
-        <Skeleton className="h-52 w-full rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 flex flex-col gap-4">
+            <Skeleton className="h-44 w-full rounded-2xl" />
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <Skeleton className="h-36 w-full rounded-2xl" />
+          </div>
+          <div className="lg:col-span-5">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -208,23 +214,23 @@ export default function CheckoutPage() {
   // 2. Empty Cart Guard State
   if (cart.items.length === 0 && !isSubmitting) {
     return (
-      <div className="w-full min-h-[75vh] px-4 py-8 flex flex-col items-center justify-center text-center gap-5 max-w-[430px] mx-auto animate-in fade-in duration-300">
+      <div className="w-full min-h-[75vh] px-4 py-8 flex flex-col items-center justify-center text-center gap-5 max-w-md sm:max-w-lg mx-auto animate-in fade-in duration-300">
         <div className="w-20 h-20 rounded-3xl bg-brand-50/80 border border-brand-100 flex items-center justify-center text-brand-400">
           <ShoppingBag className="w-10 h-10 stroke-[1.5]" />
         </div>
 
-        <div className="flex flex-col gap-1.5 max-w-xs">
-          <h1 className="text-lg font-bold text-neutral-900">
+        <div className="flex flex-col gap-1.5 max-w-xs sm:max-w-sm">
+          <h1 className="text-lg sm:text-xl font-bold text-neutral-900">
             {t("cart.emptyTitle", "سلتك فارغة حالياً")}
           </h1>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs sm:text-sm text-neutral-500">
             {locale === "ar"
               ? "لا يمكن متابعة إتمام الطلب لأن سلتك لا تحتوي على أي منتجات."
               : "Cannot proceed to checkout because your cart is empty."}
           </p>
         </div>
 
-        <Button variant="primary" size="md" asChild className="font-bold shadow-soft">
+        <Button variant="primary" size="md" asChild className="font-bold shadow-soft min-h-[44px]">
           <Link href={`/${locale}/catalog`} className="flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
             <span>{t("cart.browseCatalog", "تصفح المنتجات")}</span>
@@ -234,28 +240,28 @@ export default function CheckoutPage() {
     );
   }
 
-  // 3. Checkout Screen
+  // 3. Checkout Screen: Responsive 2-column layout on Desktop (lg:)
   return (
-    <div className="w-full min-h-screen px-4 pt-3 pb-28 flex flex-col gap-5 max-w-[430px] mx-auto animate-in fade-in duration-200 text-start">
+    <div className="w-full min-h-screen px-3 sm:px-6 lg:px-8 xl:px-12 pt-3 pb-28 md:pb-12 flex flex-col gap-5 max-w-[1600px] 2xl:max-w-[1800px] mx-auto animate-in fade-in duration-200 text-start">
       {/* Top Header with Back Navigation */}
-      <div className="flex items-center justify-between pb-1 border-b border-neutral-100">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href={`/${locale}/cart`}
-            className="w-9 h-9 rounded-xl bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition-colors"
+            className="min-w-[44px] min-h-[44px] rounded-xl bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition-colors focus-visible:ring-2 focus-visible:ring-brand-500"
             aria-label={t("common.back", "رجوع للسلة")}
           >
             {direction === "rtl" ? (
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             ) : (
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </Link>
           <div className="flex flex-col">
-            <h1 className="text-base font-extrabold text-neutral-900 leading-tight">
+            <h1 className="text-base sm:text-xl font-extrabold text-neutral-900 leading-tight">
               {t("checkout.title", "إتمام الطلب")}
             </h1>
-            <span className="text-[11px] text-neutral-500">
+            <span className="text-[11px] sm:text-xs text-neutral-500">
               {cart.seller?.business_name || (locale === "ar" ? "متجر محلي" : "Local Seller")}
             </span>
           </div>
@@ -268,7 +274,7 @@ export default function CheckoutPage() {
 
       {/* Error Alert (if any) */}
       {submitError && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-red-900 animate-in fade-in duration-150">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs sm:text-sm text-red-900 animate-in fade-in duration-150">
           <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
           <div className="flex flex-col gap-0.5">
             <span className="font-bold">{locale === "ar" ? "تنبيه" : "Notice"}</span>
@@ -277,100 +283,107 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* Section 1: Delivery Address */}
-      <div className="flex flex-col gap-2.5">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center">
-            <MapPin className="w-3.5 h-3.5" />
+      {/* Responsive 2-Column Checkout Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+        {/* Left Column (lg:col-span-7): Forms, Delivery Address, Time slot, Payment, Notes */}
+        <div className="lg:col-span-7 flex flex-col gap-5">
+          {/* Section 1: Delivery Address */}
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4" />
+              </div>
+              <h2 className="text-sm sm:text-base font-bold text-neutral-900">
+                {t("checkout.deliveryInfo", "عنوان التوصيل والاستلام")}
+              </h2>
+            </div>
+
+            <AddressSelector
+              addresses={addresses}
+              selectedAddressId={selectedAddressId}
+              onSelectAddress={handleSelectAddress}
+              onAddAddress={handleAddAddress}
+              onUpdateAddress={handleUpdateAddress}
+            />
           </div>
-          <h2 className="text-sm font-bold text-neutral-900">
-            {t("checkout.deliveryInfo", "عنوان التوصيل والاستلام")}
-          </h2>
+
+          {/* Section 2: Preferred Delivery Window */}
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <h2 className="text-sm sm:text-base font-bold text-neutral-900">
+                {t("checkout.deliveryTime", "وقت التوصيل المفضل")}
+              </h2>
+            </div>
+
+            <DeliveryTimeSlotPicker
+              slots={deliverySlots}
+              selectedSlotId={selectedSlotId}
+              onSelectSlot={(slot) => setSelectedSlotId(slot.id)}
+            />
+          </div>
+
+          {/* Section 3: Payment Method */}
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center shrink-0">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <h2 className="text-sm sm:text-base font-bold text-neutral-900">
+                {t("checkout.paymentMethod", "طريقة الدفع")}
+              </h2>
+            </div>
+
+            <PaymentMethodSelector
+              selectedMethod={paymentMethod}
+              onSelectMethod={setPaymentMethod}
+            />
+          </div>
+
+          {/* Section 4: Special Instructions / Order Notes */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4" />
+              </div>
+              <label
+                htmlFor="order-notes"
+                className="text-sm sm:text-base font-bold text-neutral-900"
+              >
+                {t("checkout.orderNotes", "ملاحظات إضافية للبائع (اختياري)")}
+              </label>
+            </div>
+
+            <textarea
+              id="order-notes"
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t(
+                "checkout.orderNotesPlaceholder",
+                "أي تعليمات خاصة بتغليف المنتجات أو إرشادات للمندوب..."
+              )}
+              className="w-full p-3 text-xs sm:text-sm rounded-2xl border border-neutral-300 bg-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none transition-all"
+            />
+          </div>
         </div>
 
-        <AddressSelector
-          addresses={addresses}
-          selectedAddressId={selectedAddressId}
-          onSelectAddress={handleSelectAddress}
-          onAddAddress={handleAddAddress}
-          onUpdateAddress={handleUpdateAddress}
-        />
-      </div>
-
-      {/* Section 2: Preferred Delivery Window */}
-      <div className="flex flex-col gap-2.5">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center">
-            <Clock className="w-3.5 h-3.5" />
-          </div>
-          <h2 className="text-sm font-bold text-neutral-900">
-            {t("checkout.deliveryTime", "وقت التوصيل المفضل")}
-          </h2>
+        {/* Right Column (lg:col-span-5): Sticky Order Summary & Review */}
+        <div className="lg:col-span-5 lg:sticky lg:top-20">
+          <CheckoutSummary
+            address={selectedAddress}
+            timeSlot={selectedSlot}
+            paymentMethod={paymentMethod}
+            notes={notes}
+            onSubmitOrder={handlePlaceOrder}
+            isSubmitting={isSubmitting}
+            disabled={!selectedAddress || hasBlockingIssues || isSubmitting}
+          />
         </div>
-
-        <DeliveryTimeSlotPicker
-          slots={deliverySlots}
-          selectedSlotId={selectedSlotId}
-          onSelectSlot={(slot) => setSelectedSlotId(slot.id)}
-        />
-      </div>
-
-      {/* Section 3: Payment Method */}
-      <div className="flex flex-col gap-2.5">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center">
-            <CreditCard className="w-3.5 h-3.5" />
-          </div>
-          <h2 className="text-sm font-bold text-neutral-900">
-            {t("checkout.paymentMethod", "طريقة الدفع")}
-          </h2>
-        </div>
-
-        <PaymentMethodSelector
-          selectedMethod={paymentMethod}
-          onSelectMethod={setPaymentMethod}
-        />
-      </div>
-
-      {/* Section 4: Special Instructions / Order Notes */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center">
-            <FileText className="w-3.5 h-3.5" />
-          </div>
-          <label
-            htmlFor="order-notes"
-            className="text-sm font-bold text-neutral-900"
-          >
-            {t("checkout.orderNotes", "ملاحظات إضافية للبائع (اختياري)")}
-          </label>
-        </div>
-
-        <textarea
-          id="order-notes"
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder={t(
-            "checkout.orderNotesPlaceholder",
-            "أي تعليمات خاصة بتغليف المنتجات أو إرشادات للمندوب..."
-          )}
-          className="w-full p-3 text-xs sm:text-sm rounded-2xl border border-neutral-300 bg-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none transition-all"
-        />
-      </div>
-
-      {/* Section 5: Order Summary & Review */}
-      <div className="flex flex-col gap-2 pt-2 border-t border-neutral-100">
-        <CheckoutSummary
-          address={selectedAddress}
-          timeSlot={selectedSlot}
-          paymentMethod={paymentMethod}
-          notes={notes}
-          onSubmitOrder={handlePlaceOrder}
-          isSubmitting={isSubmitting}
-          disabled={!selectedAddress || hasBlockingIssues || isSubmitting}
-        />
       </div>
     </div>
   );
 }
+

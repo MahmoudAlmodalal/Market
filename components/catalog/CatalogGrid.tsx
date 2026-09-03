@@ -48,7 +48,8 @@ export function CatalogGrid({
     return (
       <div
         className={cn(
-          "w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 sm:gap-4 px-4 py-2",
+          // Responsive Grid: 2 cols on mobile (320px+), 3 on tablet (640px+), 4 on laptop (1024px+), 5 on desktop (1280px+), 6 on wide (1536px+)
+          "w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5 px-3 sm:px-6 lg:px-8 xl:px-12 py-2",
           className
         )}
         aria-busy="true"
@@ -66,7 +67,7 @@ export function CatalogGrid({
     return (
       <div
         className={cn(
-          "w-full py-12 px-6 flex flex-col items-center justify-center text-center gap-4 bg-white rounded-2xl border border-red-100 mx-auto my-4 max-w-[92%]",
+          "w-full py-12 px-6 flex flex-col items-center justify-center text-center gap-4 bg-white rounded-2xl border border-red-100 mx-auto my-4 max-w-md sm:max-w-lg",
           className
         )}
         role="alert"
@@ -76,10 +77,10 @@ export function CatalogGrid({
         </div>
 
         <div className="flex flex-col gap-1 max-w-sm">
-          <h3 className="text-base font-bold text-neutral-900">
+          <h3 className="text-base sm:text-lg font-bold text-neutral-900">
             {t("common.error", "حدث خطأ أثناء تحميل المنتجات")}
           </h3>
-          <p className="text-xs text-neutral-500 leading-relaxed">
+          <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed">
             {errorMessage ||
               (locale === "ar"
                 ? "تعذر الاتصال بالخادم، يرجى التحقق من اتصالك بالإنترنت والمحاولة مجدداً."
@@ -93,6 +94,7 @@ export function CatalogGrid({
             size="sm"
             onClick={onRetry}
             leftIcon={<RotateCcw className="w-4 h-4" />}
+            className="min-h-[44px]"
           >
             {t("common.retry", "إعادة المحاولة")}
           </Button>
@@ -106,7 +108,7 @@ export function CatalogGrid({
     return (
       <div
         className={cn(
-          "w-full py-12 px-6 flex flex-col items-center justify-center text-center gap-4 bg-white rounded-2xl border border-neutral-200/80 mx-auto my-4 max-w-[92%]",
+          "w-full py-12 px-6 flex flex-col items-center justify-center text-center gap-4 bg-white rounded-2xl border border-neutral-200/80 mx-auto my-4 max-w-md sm:max-w-lg",
           className
         )}
       >
@@ -115,10 +117,10 @@ export function CatalogGrid({
         </div>
 
         <div className="flex flex-col gap-1 max-w-sm">
-          <h3 className="text-base font-bold text-neutral-900">
+          <h3 className="text-base sm:text-lg font-bold text-neutral-900">
             {emptyTitle || t("catalog.emptySearchTitle", "لم نجد أي منتجات")}
           </h3>
-          <p className="text-xs text-neutral-500 leading-relaxed">
+          <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed">
             {emptyDescription ||
               t(
                 "catalog.emptySearchDesc",
@@ -133,6 +135,7 @@ export function CatalogGrid({
             size="sm"
             onClick={onResetFilters}
             leftIcon={<PackageOpen className="w-4 h-4" />}
+            className="min-h-[44px]"
           >
             {t("catalog.clearFilter", "عرض جميع المنتجات")}
           </Button>
@@ -145,7 +148,8 @@ export function CatalogGrid({
   return (
     <div
       className={cn(
-        "w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 sm:gap-4 px-4 py-2",
+        // Fluid multi-column responsive grid: 2 on mobile (320px+), 3 on tablet (640px+), 4 on laptop (1024px+), 5 on desktop (1280px+), 6 on wide (1536px+)
+        "w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5 px-3 sm:px-6 lg:px-8 xl:px-12 py-2",
         className
       )}
       role="feed"
@@ -164,3 +168,4 @@ export function CatalogGrid({
 }
 
 export default CatalogGrid;
+

@@ -42,16 +42,16 @@ export default function LoginPage() {
 
   return (
     <div className="w-full min-h-[80vh] flex flex-col justify-center px-4 py-8 animate-in fade-in duration-200">
-      <div className="w-full max-w-sm mx-auto flex flex-col gap-6">
+      <div className="w-full max-w-sm sm:max-w-md mx-auto flex flex-col gap-6">
         {/* Brand Header */}
         <div className="text-center flex flex-col items-center">
           <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center text-brand-500 mb-3 shadow-soft-sm">
             <LogIn className="w-7 h-7 text-brand-500" />
           </div>
-          <h1 className="text-2xl font-black text-neutral-900 mb-1">
+          <h1 className="text-2xl sm:text-3xl font-black text-neutral-900 mb-1">
             {locale === "ar" ? "تسجيل الدخول إلى سوقي" : "Welcome to Souqi"}
           </h1>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs sm:text-sm text-neutral-500">
             {locale === "ar"
               ? "سوق الحارة الرقمي للمنتجات الحرفية والمنزلية"
               : "Hyperlocal marketplace for handmade & local goods"}
@@ -59,16 +59,16 @@ export default function LoginPage() {
         </div>
 
         {/* Login Form Card */}
-        <Card className="p-5 bg-white border border-neutral-200/90 rounded-2xl shadow-soft-sm">
+        <Card className="p-5 sm:p-6 bg-white border border-neutral-200/90 rounded-2xl shadow-soft-sm">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-semantic-error font-medium text-start">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs sm:text-sm text-semantic-error font-medium text-start">
                 {error}
               </div>
             )}
 
             <div className="flex flex-col gap-1.5 text-start">
-              <label className="text-xs font-semibold text-neutral-700">
+              <label className="text-xs sm:text-sm font-semibold text-neutral-700">
                 {locale === "ar" ? "البريد الإلكتروني" : "Email Address"}
               </label>
               <Input
@@ -78,11 +78,12 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 startIcon={<Mail className="w-4 h-4 text-neutral-400" />}
+                className="h-11 sm:h-12 text-xs sm:text-sm"
               />
             </div>
 
             <div className="flex flex-col gap-1.5 text-start">
-              <label className="text-xs font-semibold text-neutral-700">
+              <label className="text-xs sm:text-sm font-semibold text-neutral-700">
                 {locale === "ar" ? "كلمة المرور" : "Password"}
               </label>
               <Input
@@ -92,6 +93,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 startIcon={<Lock className="w-4 h-4 text-neutral-400" />}
+                className="h-11 sm:h-12 text-xs sm:text-sm"
               />
             </div>
 
@@ -101,7 +103,7 @@ export default function LoginPage() {
               size="lg"
               fullWidth
               loading={isLoading}
-              className="mt-2"
+              className="mt-2 min-h-[44px] font-bold text-sm sm:text-base"
               rightIcon={direction === "rtl" ? <ArrowLeft className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
             >
               {locale === "ar" ? "دخول" : "Sign In"}
@@ -110,7 +112,7 @@ export default function LoginPage() {
 
           {/* Quick Demo Logins */}
           <div className="mt-5 pt-4 border-t border-neutral-100 flex flex-col gap-2">
-            <span className="text-[11px] text-neutral-400 text-center font-medium">
+            <span className="text-[11px] sm:text-xs text-neutral-400 text-center font-medium">
               {locale === "ar" ? "حسابات تجريبية سريعة" : "Quick Demo Accounts"}
             </span>
             <div className="grid grid-cols-2 gap-2">
@@ -120,7 +122,7 @@ export default function LoginPage() {
                   setEmail("sara@souqi.market");
                   setPassword("password123");
                 }}
-                className="px-2.5 py-1.5 rounded-lg border border-neutral-200 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 active:scale-98 transition-all"
+                className="px-3 py-2 min-h-[44px] rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 active:scale-98 transition-all flex items-center justify-center text-center"
               >
                 {locale === "ar" ? "مشتري (سارة)" : "Customer (Sara)"}
               </button>
@@ -130,7 +132,7 @@ export default function LoginPage() {
                   setEmail("yasmeen@souqi.market");
                   setPassword("password123");
                 }}
-                className="px-2.5 py-1.5 rounded-lg border border-brand-200 text-[11px] font-semibold text-brand-600 bg-brand-50/50 hover:bg-brand-50 active:scale-98 transition-all"
+                className="px-3 py-2 min-h-[44px] rounded-xl border border-brand-200 text-xs font-semibold text-brand-600 bg-brand-50/50 hover:bg-brand-50 active:scale-98 transition-all flex items-center justify-center text-center"
               >
                 {locale === "ar" ? "تاجر (الياسمين)" : "Seller (Yasmeen)"}
               </button>

@@ -64,19 +64,24 @@
     border-color: var(--hairline);
   }
 
+  /* Prevent horizontal overflow across all viewports */
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     background-color: var(--canvas);
     color: var(--neutral-800);
+    overflow-x: hidden;
+    scroll-behavior: smooth;
   }
 
   body {
     min-height: 100vh;
+    min-height: 100dvh; /* Fluid dynamic viewport height for mobile browsers */
     background-color: var(--canvas);
     color: var(--neutral-800);
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
   }
 
   /* Direction specific typography priority */
@@ -115,5 +120,20 @@
   .card-elevation:hover {
     box-shadow: var(--shadow-lg);
     transform: translateY(-2px);
+  }
+
+  /* Safe Area Insets for notched phones & gestures */
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 16px);
+  }
+
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top), 12px);
+  }
+
+  /* Minimum touch target utility (44x44px minimum) */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
   }
 }

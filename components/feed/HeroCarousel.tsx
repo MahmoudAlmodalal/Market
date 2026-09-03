@@ -92,7 +92,7 @@ export function HeroCarousel({
 
   return (
     <div
-      className={cn("w-full relative px-4 select-none", className)}
+      className={cn("w-full relative px-3 sm:px-6 lg:px-8 xl:px-12 select-none", className)}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       role="region"
@@ -100,7 +100,7 @@ export function HeroCarousel({
       aria-label="Promotional Banners"
     >
       <div
-        className="w-full aspect-[16/9] min-h-[195px] max-h-[240px] relative rounded-card overflow-hidden shadow-soft-md border border-neutral-200/80 bg-neutral-900"
+        className="w-full aspect-[16/9] sm:aspect-[21/9] md:aspect-[24/9] lg:aspect-[28/9] min-h-[195px] sm:min-h-[260px] lg:min-h-[320px] xl:min-h-[360px] max-h-[460px] relative rounded-card overflow-hidden shadow-soft-md border border-neutral-200/80 bg-neutral-900"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -123,33 +123,34 @@ export function HeroCarousel({
             />
 
             {/* Gradient Overlays for High Contrast */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/10" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent rtl:bg-gradient-to-l rtl:from-black/60 rtl:via-transparent rtl:to-transparent" />
 
-            {/* Content Details */}
-            <div className="absolute inset-0 p-4.5 flex flex-col justify-end text-start z-20">
+            {/* Content Details with dynamic responsive scaling */}
+            <div className="absolute inset-0 p-4 sm:p-6 lg:p-8 flex flex-col justify-end text-start z-20">
               {banner.badge && (
-                <div className="mb-1.5 flex items-center">
-                  <span className="inline-flex items-center gap-1 bg-brand-500/90 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-0.5 rounded-pill shadow-glow">
-                    <Sparkles className="w-3 h-3" />
+                <div className="mb-1.5 sm:mb-2 flex items-center">
+                  <span className="inline-flex items-center gap-1 bg-brand-500/90 backdrop-blur-md text-white text-[10px] sm:text-xs font-bold px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-pill shadow-glow">
+                    <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     <span>{banner.badge}</span>
                   </span>
                 </div>
               )}
 
-              <h3 className="text-white text-base sm:text-lg font-bold leading-tight line-clamp-1 drop-shadow-sm">
+              {/* Dynamic typography scaling from mobile text-base to desktop text-3xl */}
+              <h3 className="text-white text-base sm:text-xl md:text-2xl lg:text-3xl font-extrabold leading-tight line-clamp-1 drop-shadow-sm">
                 {banner.title}
               </h3>
 
               {banner.subtitle && (
-                <p className="text-neutral-200 text-xs line-clamp-1 mt-0.5 font-normal opacity-95">
+                <p className="text-neutral-200 text-xs sm:text-sm lg:text-base line-clamp-2 mt-0.5 sm:mt-1 font-normal opacity-95 max-w-xl">
                   {banner.subtitle}
                 </p>
               )}
 
-              {/* Action Button */}
+              {/* Action Button with 44px minimum touch target */}
               {banner.cta_text && (
-                <div className="mt-2.5">
+                <div className="mt-2.5 sm:mt-3.5">
                   <Link
                     href={`/${locale}${banner.link.startsWith("/") ? banner.link : `/${banner.link}`}`}
                     onClick={(e) => {
@@ -158,13 +159,13 @@ export function HeroCarousel({
                         onCtaClick(banner);
                       }
                     }}
-                    className="inline-flex items-center gap-1.5 bg-white text-brand-600 hover:bg-brand-50 active:bg-brand-100 text-xs font-bold px-3.5 py-1.5 rounded-pill transition-all duration-150 shadow-sm active:scale-95"
+                    className="inline-flex items-center gap-1.5 bg-white text-brand-600 hover:bg-brand-50 active:bg-brand-100 text-xs sm:text-sm font-bold px-4 py-2 min-h-[44px] rounded-pill transition-all duration-150 shadow-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-brand-500"
                   >
                     <span>{banner.cta_text}</span>
                     {isRtl ? (
-                      <ChevronLeft className="w-3.5 h-3.5 shrink-0" />
+                      <ChevronLeft className="w-4 h-4 shrink-0" />
                     ) : (
-                      <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                      <ChevronRight className="w-4 h-4 shrink-0" />
                     )}
                   </Link>
                 </div>
@@ -173,31 +174,31 @@ export function HeroCarousel({
           </div>
         ))}
 
-        {/* Carousel Arrow Controls (Visual overlay on hover/desktop, tap on mobile) */}
+        {/* Carousel Arrow Controls with 44x44px touch targets */}
         {count > 1 && (
           <>
             <button
               type="button"
               onClick={isRtl ? nextSlide : prevSlide}
               aria-label="Previous slide"
-              className="absolute start-2 top-1/2 -translate-y-1/2 z-30 p-1.5 rounded-full bg-black/30 hover:bg-black/50 active:scale-90 text-white backdrop-blur-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="absolute start-3 top-1/2 -translate-y-1/2 z-30 min-w-[44px] min-h-[44px] rounded-full bg-black/40 hover:bg-black/60 active:scale-90 text-white backdrop-blur-sm transition-all flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              {isRtl ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+              {isRtl ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
             </button>
             <button
               type="button"
               onClick={isRtl ? prevSlide : nextSlide}
               aria-label="Next slide"
-              className="absolute end-2 top-1/2 -translate-y-1/2 z-30 p-1.5 rounded-full bg-black/30 hover:bg-black/50 active:scale-90 text-white backdrop-blur-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="absolute end-3 top-1/2 -translate-y-1/2 z-30 min-w-[44px] min-h-[44px] rounded-full bg-black/40 hover:bg-black/60 active:scale-90 text-white backdrop-blur-sm transition-all flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              {isRtl ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              {isRtl ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
             </button>
           </>
         )}
 
         {/* Dot Pagination Indicators */}
         {count > 1 && (
-          <div className="absolute bottom-2.5 end-4 z-30 flex items-center gap-1.5">
+          <div className="absolute bottom-3 end-4 sm:end-6 z-30 flex items-center gap-1.5">
             {banners.map((_, dotIdx) => (
               <button
                 key={dotIdx}
@@ -205,10 +206,10 @@ export function HeroCarousel({
                 onClick={() => setCurrentIndex(dotIdx)}
                 aria-label={`Go to slide ${dotIdx + 1}`}
                 className={cn(
-                  "h-1.5 rounded-full transition-all duration-300",
+                  "h-2 rounded-full transition-all duration-300 min-h-[16px] flex items-center",
                   dotIdx === currentIndex
-                    ? "w-5 bg-brand-500 shadow-glow"
-                    : "w-1.5 bg-white/50 hover:bg-white/80"
+                    ? "w-6 bg-brand-500 shadow-glow"
+                    : "w-2 bg-white/50 hover:bg-white/80"
                 )}
               />
             ))}
@@ -220,3 +221,4 @@ export function HeroCarousel({
 }
 
 export default HeroCarousel;
+

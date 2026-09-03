@@ -82,7 +82,7 @@ export function Drawer({
       <div
         ref={drawerRef}
         className={cn(
-          "relative z-50 w-full max-w-[430px] bg-white rounded-t-3xl shadow-soft-lg border-t border-neutral-200/90 overflow-hidden",
+          "relative z-50 w-full max-w-lg bg-white rounded-t-3xl shadow-soft-lg border-t border-neutral-200/90 overflow-hidden",
           "animate-in slide-in-from-bottom duration-300 ease-out max-h-[85vh] flex flex-col pb-[max(env(safe-area-inset-bottom),16px)]",
           className
         )}

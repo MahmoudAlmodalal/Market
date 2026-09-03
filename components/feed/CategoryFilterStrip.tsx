@@ -72,7 +72,7 @@ export function CategoryFilterStrip({
     >
       <div
         ref={scrollRef}
-        className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-4 scroll-smooth"
+        className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-3 sm:px-6 lg:px-8 xl:px-12 scroll-smooth"
         tabIndex={0}
         role="tablist"
         aria-orientation="horizontal"
@@ -85,7 +85,7 @@ export function CategoryFilterStrip({
             aria-selected={selectedCategoryId === null}
             onClick={() => onSelectCategory(null)}
             className={cn(
-              "shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-pill text-xs font-semibold transition-all duration-200 border select-none active:scale-95",
+              "shrink-0 inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 min-h-[40px] sm:min-h-[44px] rounded-pill text-xs sm:text-sm font-semibold transition-all duration-200 border select-none active:scale-95 focus-visible:ring-2 focus-visible:ring-brand-500",
               selectedCategoryId === null
                 ? "bg-brand-500 text-white border-brand-500 shadow-glow"
                 : "bg-white text-neutral-700 border-neutral-200/90 hover:border-neutral-300 hover:bg-neutral-50 shadow-soft-sm"
@@ -109,7 +109,7 @@ export function CategoryFilterStrip({
               aria-selected={isSelected}
               onClick={() => onSelectCategory(category.id)}
               className={cn(
-                "shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-pill text-xs font-semibold transition-all duration-200 border select-none active:scale-95",
+                "shrink-0 inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 min-h-[40px] sm:min-h-[44px] rounded-pill text-xs sm:text-sm font-semibold transition-all duration-200 border select-none active:scale-95 focus-visible:ring-2 focus-visible:ring-brand-500",
                 isSelected
                   ? "bg-brand-500 text-white border-brand-500 shadow-glow"
                   : "bg-white text-neutral-700 border-neutral-200/90 hover:border-neutral-300 hover:bg-neutral-50 shadow-soft-sm"

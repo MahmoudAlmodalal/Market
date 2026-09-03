@@ -17,6 +17,7 @@ import './tier1_features.test';
 import './tier2_boundaries.test';
 import './tier3_combinations.test';
 import './tier4_scenarios.test';
+import './notifications.test';
 
 interface RunnerOptions {
   tier?: number;

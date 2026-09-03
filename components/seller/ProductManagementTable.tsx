@@ -352,157 +352,312 @@ export function ProductManagementTable({
         {filteredProducts.length === 0 ? (
           <div className="bg-white border border-neutral-200 rounded-2xl p-8 text-center space-y-2">
             <Package className="w-8 h-8 text-neutral-300 mx-auto" />
-            <p className="text-sm font-bold text-neutral-800">
+            <p className="text-sm sm:text-base font-bold text-neutral-800">
               {locale === "ar" ? "لم يتم العثور على منتجات" : "No products found"}
             </p>
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs sm:text-sm text-neutral-500">
               {locale === "ar"
                 ? "جرّب تغيير عبارة البحث أو الفلتر المحدد"
                 : "Try adjusting your search query or filter"}
             </p>
           </div>
         ) : (
-          filteredProducts.map((p) => {
-            const stock = p.stock_quantity ?? p.available_quantity ?? 0;
-            return (
-              <div
-                key={p.id}
-                className="bg-white border border-neutral-200/90 rounded-2xl p-3.5 shadow-xs hover:shadow-sm transition-all space-y-3"
-              >
-                {/* Top: Image, Title, Price, Status */}
-                <div className="flex items-start gap-3">
-                  <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 shrink-0 border border-neutral-200">
-                    {p.primary_image ? (
-                      <Image
-                        src={p.primary_image}
-                        alt={p.name}
-                        fill
-                        className="object-cover"
-                        sizes="64px"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-neutral-400">
-                        <Package className="w-6 h-6" />
+          <>
+            {/* DESKTOP DATA TABLE (>=768px / md:) */}
+            <div className="hidden md:block w-full overflow-x-auto rounded-2xl border border-neutral-200/90 bg-white shadow-soft-sm">
+              <table className="w-full text-start border-collapse text-xs sm:text-sm">
+                <thead>
+                  <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-bold text-start">
+                    <th className="py-3.5 px-4 text-start">{locale === "ar" ? "المنتج" : "Product"}</th>
+                    <th className="py-3.5 px-4 text-start">{locale === "ar" ? "التصنيف" : "Category"}</th>
+                    <th className="py-3.5 px-4 text-start">{locale === "ar" ? "السعر" : "Price"}</th>
+                    <th className="py-3.5 px-4 text-start">{locale === "ar" ? "المخزون" : "Stock"}</th>
+                    <th className="py-3.5 px-4 text-start">{locale === "ar" ? "الحالة" : "Status"}</th>
+                    <th className="py-3.5 px-4 text-end">{locale === "ar" ? "الإجراءات" : "Actions"}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {filteredProducts.map((p) => {
+                    const stock = p.stock_quantity ?? p.available_quantity ?? 0;
+                    return (
+                      <tr key={`desktop-${p.id}`} className="hover:bg-neutral-50/60 transition-colors">
+                        {/* Product Info */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-100 shrink-0 border border-neutral-200">
+                              {p.primary_image ? (
+                                <Image
+                                  src={p.primary_image}
+                                  alt={p.name}
+                                  fill
+                                  className="object-cover"
+                                  sizes="48px"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                                  <Package className="w-5 h-5" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-neutral-900 block truncate max-w-xs sm:max-w-sm">
+                                {p.name}
+                              </span>
+                              {p.description && (
+                                <span className="text-[11px] text-neutral-400 truncate block max-w-xs">
+                                  {p.description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Category */}
+                        <td className="py-3 px-4 text-neutral-600 font-medium">
+                          {p.category?.name || "—"}
+                        </td>
+
+                        {/* Price */}
+                        <td className="py-3 px-4 font-bold text-brand-600 tabular-nums">
+                          {p.price} <span className="text-[11px] text-neutral-500 font-semibold">{locale === "ar" ? "ر.س" : "SAR"}</span>
+                        </td>
+
+                        {/* Stock Quantity Stepper */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleAdjustStock(p.id, -1)}
+                              disabled={stock <= 0}
+                              className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 flex items-center justify-center text-neutral-700 transition-colors active:scale-95"
+                              aria-label="Decrease stock"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-9 text-center font-bold tabular-nums text-neutral-900">
+                              {stock}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleAdjustStock(p.id, 1)}
+                              className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition-colors active:scale-95"
+                              aria-label="Increase stock"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Status Badge */}
+                        <td className="py-3 px-4">
+                          {renderStatusBadge(p)}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-4 text-end">
+                          <div className="flex items-center justify-end gap-1">
+                            {onOpenAiAssistant && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenAiAssistant(p)}
+                                className="w-9 h-9 rounded-xl text-amber-600 hover:bg-amber-50 flex items-center justify-center transition-colors"
+                                title={locale === "ar" ? "توليد وصف بالذكاء الاصطناعي" : "AI Description"}
+                              >
+                                <Sparkles className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingProduct(p);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="w-9 h-9 rounded-xl text-neutral-600 hover:bg-neutral-100 flex items-center justify-center transition-colors"
+                              title={locale === "ar" ? "تعديل" : "Edit"}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                p.status === "archived"
+                                  ? handleTogglePublish(p.id)
+                                  : handleArchive(p.id)
+                              }
+                              className="w-9 h-9 rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center transition-colors"
+                              title={
+                                p.status === "archived"
+                                  ? locale === "ar"
+                                    ? "استعادة"
+                                    : "Restore"
+                                  : locale === "ar"
+                                  ? "أرشفة"
+                                  : "Archive"
+                              }
+                            >
+                              <Archive className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(p.id)}
+                              className="w-9 h-9 rounded-xl text-neutral-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors"
+                              title={locale === "ar" ? "حذف" : "Delete"}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* MOBILE STACKED CARDS (<768px / md:hidden) */}
+            <div className="md:hidden space-y-3">
+              {filteredProducts.map((p) => {
+                const stock = p.stock_quantity ?? p.available_quantity ?? 0;
+                return (
+                  <div
+                    key={`mobile-${p.id}`}
+                    className="bg-white border border-neutral-200/90 rounded-2xl p-3.5 shadow-xs hover:shadow-sm transition-all space-y-3"
+                  >
+                    {/* Top: Image, Title, Price, Status */}
+                    <div className="flex items-start gap-3">
+                      <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 shrink-0 border border-neutral-200">
+                        {p.primary_image ? (
+                          <Image
+                            src={p.primary_image}
+                            alt={p.name}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                            <Package className="w-6 h-6" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-xs font-bold text-neutral-900 line-clamp-2 leading-tight">
-                        {p.name}
-                      </h4>
-                      <div className="shrink-0">{renderStatusBadge(p)}</div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-xs font-bold text-neutral-900 line-clamp-2 leading-tight">
+                            {p.name}
+                          </h4>
+                          <div className="shrink-0">{renderStatusBadge(p)}</div>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-bold text-brand-600 tabular-nums">
+                            {p.price}{" "}
+                            <span className="text-[10px] font-semibold">
+                              {locale === "ar" ? "ر.س" : "SAR"}
+                            </span>
+                          </span>
+                          {p.category?.name && (
+                            <span className="text-[11px] text-neutral-400">
+                              • {p.category.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="font-bold text-brand-600 tabular-nums">
-                        {p.price}{" "}
-                        <span className="text-[10px] font-semibold">
-                          {locale === "ar" ? "ر.س" : "SAR"}
+                    {/* Bottom Row: Stock Quantity Stepper & Action Buttons */}
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-100">
+                      {/* Stock Quick Stepper with 44px touch targets */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-semibold text-neutral-500 me-1">
+                          {locale === "ar" ? "المخزون:" : "Stock:"}
                         </span>
-                      </span>
-                      {p.category?.name && (
-                        <span className="text-[11px] text-neutral-400">
-                          • {p.category.name}
+                        <button
+                          type="button"
+                          onClick={() => handleAdjustStock(p.id, -1)}
+                          disabled={stock <= 0}
+                          className="min-w-[40px] min-h-[40px] rounded-xl bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 flex items-center justify-center text-neutral-700 transition-colors active:scale-95"
+                          aria-label="Decrease stock"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="w-8 text-center text-xs font-bold tabular-nums text-neutral-900">
+                          {stock}
                         </span>
-                      )}
+                        <button
+                          type="button"
+                          onClick={() => handleAdjustStock(p.id, 1)}
+                          className="min-w-[40px] min-h-[40px] rounded-xl bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition-colors active:scale-95"
+                          aria-label="Increase stock"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Actions Group with 44px touch targets */}
+                      <div className="flex items-center gap-1">
+                        {onOpenAiAssistant && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenAiAssistant(p)}
+                            className="min-w-[40px] min-h-[40px] rounded-xl text-amber-600 hover:bg-amber-50 flex items-center justify-center transition-colors"
+                            title={locale === "ar" ? "توليد وصف بالذكاء الاصطناعي" : "AI Description"}
+                          >
+                            <Sparkles className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingProduct(p);
+                            setIsEditModalOpen(true);
+                          }}
+                          className="min-w-[40px] min-h-[40px] rounded-xl text-neutral-600 hover:bg-neutral-100 flex items-center justify-center transition-colors"
+                          title={locale === "ar" ? "تعديل" : "Edit"}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            p.status === "archived"
+                              ? handleTogglePublish(p.id)
+                              : handleArchive(p.id)
+                          }
+                          className="min-w-[40px] min-h-[40px] rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center transition-colors"
+                          title={
+                            p.status === "archived"
+                              ? locale === "ar"
+                                ? "استعادة"
+                                : "Restore"
+                              : locale === "ar"
+                              ? "أرشفة"
+                              : "Archive"
+                          }
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(p.id)}
+                          className="min-w-[40px] min-h-[40px] rounded-xl text-neutral-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors"
+                          title={locale === "ar" ? "حذف" : "Delete"}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Bottom Row: Stock Quantity Stepper & Action Buttons */}
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-100">
-                  {/* Stock Quick Stepper */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-semibold text-neutral-500 me-1">
-                      {locale === "ar" ? "المخزون:" : "Stock:"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleAdjustStock(p.id, -1)}
-                      disabled={stock <= 0}
-                      className="w-7 h-7 rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 flex items-center justify-center text-neutral-700 transition-colors"
-                      aria-label="Decrease stock"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="w-8 text-center text-xs font-bold tabular-nums text-neutral-900">
-                      {stock}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleAdjustStock(p.id, 1)}
-                      className="w-7 h-7 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition-colors"
-                      aria-label="Increase stock"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-
-                  {/* Actions Group */}
-                  <div className="flex items-center gap-1">
-                    {/* AI Generator Helper */}
-                    {onOpenAiAssistant && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenAiAssistant(p)}
-                        className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors"
-                        title={locale === "ar" ? "توليد وصف بالذكاء الاصطناعي" : "AI Description"}
-                      >
-                        <Sparkles className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    {/* Edit */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingProduct(p);
-                        setIsEditModalOpen(true);
-                      }}
-                      className="p-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors"
-                      title={locale === "ar" ? "تعديل" : "Edit"}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-
-                    {/* Archive / Unarchive */}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        p.status === "archived"
-                          ? handleTogglePublish(p.id)
-                          : handleArchive(p.id)
-                      }
-                      className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
-                      title={
-                        p.status === "archived"
-                          ? locale === "ar"
-                            ? "استعادة"
-                            : "Restore"
-                          : locale === "ar"
-                          ? "أرشفة"
-                          : "Archive"
-                      }
-                    >
-                      <Archive className="w-4 h-4" />
-                    </button>
-
-                    {/* Delete */}
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(p.id)}
-                      className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      title={locale === "ar" ? "حذف" : "Delete"}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 

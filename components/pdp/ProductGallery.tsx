@@ -280,7 +280,7 @@ export function ProductGallery({
           className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-between p-4 animate-in fade-in duration-200"
         >
           {/* Lightbox Header Bar */}
-          <div className="w-full max-w-[430px] flex items-center justify-between text-white z-10">
+          <div className="w-full max-w-4xl flex items-center justify-between text-white z-10 px-4">
             <span className="text-sm font-medium numeric-data">
               {currentIndex + 1} / {totalImages}
             </span>
@@ -290,7 +290,7 @@ export function ProductGallery({
                 type="button"
                 onClick={() => setLightboxZoom((z) => Math.min(2.5, z + 0.5))}
                 aria-label="تكبير"
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white"
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 <ZoomIn className="w-5 h-5" />
               </button>
@@ -299,7 +299,7 @@ export function ProductGallery({
                 type="button"
                 onClick={() => setLightboxZoom((z) => Math.max(1, z - 0.5))}
                 aria-label="تصغير"
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white"
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 <ZoomOut className="w-5 h-5" />
               </button>
@@ -311,7 +311,7 @@ export function ProductGallery({
                   setLightboxZoom(1);
                 }}
                 aria-label="إغلاق المعاينة المكبرة"
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white ms-2"
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white ms-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -320,7 +320,7 @@ export function ProductGallery({
 
           {/* Lightbox Center Image Viewport */}
           <div
-            className="relative flex-1 w-full max-w-[430px] flex items-center justify-center overflow-hidden touch-pan-y"
+            className="relative flex-1 w-full max-w-4xl flex items-center justify-center overflow-hidden touch-pan-y p-4"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -329,18 +329,18 @@ export function ProductGallery({
               src={imageList[currentIndex]}
               alt={`${productName} مكبرة`}
               style={{ transform: `scale(${lightboxZoom})` }}
-              className="max-w-full max-h-[75vh] object-contain transition-transform duration-200 cursor-zoom-in select-none rounded-lg"
+              className="max-w-full max-h-[75vh] object-contain transition-transform duration-200 cursor-zoom-in select-none rounded-2xl"
               onClick={() => setLightboxZoom((z) => (z === 1 ? 1.8 : 1))}
             />
           </div>
 
           {/* Lightbox Bottom Controls */}
           {totalImages > 1 && (
-            <div className="w-full max-w-[430px] flex items-center justify-between text-white pb-safe">
+            <div className="w-full max-w-4xl flex items-center justify-between text-white pb-safe px-4">
               <button
                 type="button"
                 onClick={isRtl ? goToNext : goToPrev}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center gap-1.5 text-sm font-semibold"
+                className="px-4 py-2 min-h-[44px] rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center gap-1.5 text-sm font-semibold"
               >
                 {isRtl ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                 <span>{t("common.back", "السابق")}</span>
@@ -354,7 +354,7 @@ export function ProductGallery({
                     type="button"
                     onClick={() => setCurrentIndex(idx)}
                     className={cn(
-                      "h-2 rounded-full transition-all",
+                      "h-2 rounded-full transition-all min-h-[16px] flex items-center",
                       idx === currentIndex ? "w-6 bg-brand-500" : "w-2 bg-white/40"
                     )}
                     aria-label={`انتقال للصورة ${idx + 1}`}
@@ -365,7 +365,7 @@ export function ProductGallery({
               <button
                 type="button"
                 onClick={isRtl ? goToPrev : goToNext}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center gap-1.5 text-sm font-semibold"
+                className="px-4 py-2 min-h-[44px] rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center gap-1.5 text-sm font-semibold"
               >
                 <span>{t("common.continue", "التالي")}</span>
                 {isRtl ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}

@@ -120,38 +120,38 @@ export function SellerStatTiles({
   ];
 
   return (
-    <div className={cn("space-y-3", className)}>
-      {/* 4 KPI Grid */}
-      <div className="grid grid-cols-2 gap-3">
+    <div className={cn("space-y-4", className)}>
+      {/* 4 KPI Responsive Grid (2 columns on mobile, 4 on desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {tiles.map((tile) => {
           const Icon = tile.icon;
           return (
             <div
               key={tile.id}
               className={cn(
-                "p-3.5 rounded-2xl border bg-white shadow-xs space-y-2 transition-all hover:shadow-sm",
+                "p-3.5 sm:p-4 rounded-2xl border bg-white shadow-xs space-y-2 transition-all hover:shadow-sm",
                 tile.borderColor
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-neutral-600">
+                <span className="text-xs sm:text-sm font-semibold text-neutral-600">
                   {locale === "ar" ? tile.titleAr : tile.titleEn}
                 </span>
                 <div
                   className={cn(
-                    "w-7 h-7 rounded-xl flex items-center justify-center shrink-0 shadow-2xs",
+                    "w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs",
                     tile.color
                   )}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
               </div>
 
               <div className="space-y-0.5">
-                <div className="text-xl font-black text-neutral-900 tabular-nums">
+                <div className="text-xl sm:text-2xl font-black text-neutral-900 tabular-nums">
                   {tile.value}
                 </div>
-                <p className="text-[11px] text-neutral-500 font-medium truncate">
+                <p className="text-[11px] sm:text-xs text-neutral-500 font-medium truncate">
                   {locale === "ar" ? tile.subAr : tile.subEn}
                 </p>
               </div>

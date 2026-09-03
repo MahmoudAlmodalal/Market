@@ -11,14 +11,12 @@ export default function ProfilePage() {
   const { user } = useAuth();
 
   return (
-    <div className="w-full pb-24 animate-in fade-in duration-200">
+    <div className="w-full max-w-5xl xl:max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 pb-24 md:pb-12 space-y-5 sm:space-y-6 animate-in fade-in duration-200">
       {/* Header Profile Section */}
       <UserProfileHeader />
 
       {/* Account Settings, Loyalty & Management List */}
-      <div className="p-4">
-        <AccountSettings />
-      </div>
+      <AccountSettings />
     </div>
   );
 }

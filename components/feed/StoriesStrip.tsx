@@ -47,7 +47,7 @@ export function StoriesStrip({
       role="region"
       aria-label="Merchant Stories"
     >
-      <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1 px-4 scroll-smooth">
+      <div className="flex items-center gap-3.5 sm:gap-4 overflow-x-auto no-scrollbar py-1 px-3 sm:px-6 lg:px-8 xl:px-12 scroll-smooth">
         {stories.map((story) => {
           const locStory = story as LocalizedStory;
           const hasUnseen = locStory.has_unseen ?? true;

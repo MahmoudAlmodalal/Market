@@ -69,11 +69,13 @@ export function BottomNav({ cartCount, className }: BottomNavProps) {
       role="navigation"
       aria-label={t("nav.home", "التنقل السفلي")}
       className={cn(
-        "fixed bottom-0 inset-x-0 z-40 mx-auto w-full max-w-[430px] bg-white/95 backdrop-blur-md border-t border-neutral-200/90 pb-[max(env(safe-area-inset-bottom),8px)] pt-1.5 transition-all shadow-[0_-4px_16px_rgba(0,0,0,0.03)]",
+        // Responsive behavior: Visible on mobile/small tablets (<768px), gracefully hidden on desktop (md:hidden)
+        "fixed bottom-0 inset-x-0 z-40 mx-auto w-full md:hidden bg-white/95 backdrop-blur-md border-t border-neutral-200/90 pb-[max(env(safe-area-inset-bottom),8px)] pt-1.5 transition-all shadow-[0_-4px_16px_rgba(0,0,0,0.03)]",
         className
       )}
     >
-      <div className="grid grid-cols-5 items-center justify-around px-2">
+      {/* 5-Column Navigation Grid with minimum 44px touch targets */}
+      <div className="grid grid-cols-5 items-center justify-around px-2 max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.matchExact
@@ -85,8 +87,9 @@ export function BottomNav({ cartCount, className }: BottomNavProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 min-h-[48px]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+                // 44x44px minimum touch target requirement
+                "relative flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 min-h-[48px] min-w-[44px]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 active:scale-95",
                 isActive
                   ? "text-brand-500 font-semibold"
                   : "text-neutral-500 hover:text-neutral-800"
@@ -131,3 +134,4 @@ export function BottomNav({ cartCount, className }: BottomNavProps) {
 }
 
 export default BottomNav;
+

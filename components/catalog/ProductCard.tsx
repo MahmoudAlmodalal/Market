@@ -179,7 +179,7 @@ export function ProductCard({
           )}
         </div>
 
-        {/* Quick Add CTA Button */}
+        {/* Quick Add CTA Button with min 44px touch target */}
         <button
           type="button"
           disabled={isOutOfStock || isAdding}
@@ -190,7 +190,8 @@ export function ProductCard({
               : `${t("catalog.addToCart", "إضافة للسلة")} - ${product.name}`
           }
           className={cn(
-            "w-full h-9 rounded-xl font-cairo text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 select-none active:scale-[0.97]",
+            // Responsive touch target: min-h-[44px] meeting 44x44px mobile accessibility standards
+            "w-full min-h-[44px] rounded-xl font-cairo text-xs sm:text-sm font-bold transition-all duration-150 flex items-center justify-center gap-1.5 select-none active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-brand-500",
             isOutOfStock
               ? "bg-neutral-100 text-neutral-400 cursor-not-allowed border border-neutral-200/60"
               : isAddedRecently
@@ -202,12 +203,12 @@ export function ProductCard({
             <span>{t("catalog.unavailable", "غير متوفر")}</span>
           ) : isAddedRecently ? (
             <>
-              <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{t("catalog.addedToCart", "تمت الإضافة")}</span>
             </>
           ) : (
             <>
-              <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+              <ShoppingBag className="w-4 h-4 shrink-0" />
               <span>{t("catalog.addToCart", "إضافة")}</span>
             </>
           )}

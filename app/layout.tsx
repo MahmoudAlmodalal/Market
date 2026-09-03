@@ -26,7 +26,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} ${inter.variable}`}>
-      <body className="min-h-screen bg-surface-canvas text-neutral-800 antialiased selection:bg-brand-100 selection:text-brand-900">
+      <body className="min-h-screen bg-white text-neutral-800 antialiased selection:bg-brand-100 selection:text-brand-900">
         {children}
       </body>
     </html>

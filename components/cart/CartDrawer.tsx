@@ -104,7 +104,7 @@ export function CartDrawer({
                 : "Review selected items and summary before checkout")
             : undefined
         }
-        className={cn("max-w-[430px]", className)}
+        className={cn("max-w-lg", className)}
         footer={
           !isEmpty ? (
             <div className="w-full flex flex-col gap-2">
