@@ -90,12 +90,26 @@ export default function ProductDetailPage(props: ProductDetailPageProps) {
         return;
       }
 
-      setProduct(foundProduct);
-
       // Fetch seller
       const sellerId = foundProduct.seller?.id || 101;
       const foundSeller = getSellerById(sellerId) || getSellerById(101) || null;
       setSeller(foundSeller);
+
+      const productWithSeller: Product = {
+        ...foundProduct,
+        seller: foundProduct.seller || (foundSeller ? {
+          id: foundSeller.id,
+          business_name: foundSeller.name || foundSeller.business_name,
+          neighborhood: foundSeller.neighborhood,
+          city: foundSeller.city,
+          rating: foundSeller.rating,
+          review_count: foundSeller.reviewCount,
+          delivery_time: foundSeller.deliveryTimeEstimate,
+          is_verified: foundSeller.is_verified,
+        } : undefined),
+      };
+
+      setProduct(productWithSeller);
 
       // Fetch reviews
       const foundReviews = getReviewsByProductId(foundProduct.id);

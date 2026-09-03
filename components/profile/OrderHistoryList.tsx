@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTranslation, useLocale } from "@/lib/context/LocaleContext";
 import { useCart } from "@/lib/context/CartContext";
-import { getMockOrders } from "@/lib/mock/orders";
+import { getMockOrders, INITIAL_MOCK_ORDERS } from "@/lib/mock/orders";
 import { getProductById } from "@/lib/mock/products";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -53,11 +53,18 @@ export function OrderHistoryList({
   const [reorderingId, setReorderingId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Load orders
-  const allOrders = useMemo(() => {
-    if (propOrders) return propOrders;
-    return getMockOrders();
+  // Load orders safely without hydration mismatch
+  const [clientOrders, setClientOrders] = useState<Order[]>(propOrders || INITIAL_MOCK_ORDERS);
+
+  useEffect(() => {
+    if (!propOrders) {
+      setClientOrders(getMockOrders());
+    } else {
+      setClientOrders(propOrders);
+    }
   }, [propOrders]);
+
+  const allOrders = propOrders || clientOrders;
 
   // Filter orders by tab
   const filteredOrders = useMemo(() => {
@@ -268,7 +275,7 @@ export function OrderHistoryList({
                     </div>
                     <div className="flex items-center gap-1 mt-0.5 text-[11px] text-neutral-500">
                       <Clock className="w-3 h-3 text-neutral-400" />
-                      <span>{formattedDate}</span>
+                      <span suppressHydrationWarning>{formattedDate}</span>
                     </div>
                   </div>
 

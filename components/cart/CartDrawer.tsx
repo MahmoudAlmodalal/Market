@@ -13,7 +13,6 @@ import { CartHeader } from "./CartHeader";
 import { CartLineItem } from "./CartLineItem";
 import { CouponInput } from "./CouponInput";
 import { OrderPricingBreakdown } from "./OrderPricingBreakdown";
-import { MultiSellerDialog } from "./MultiSellerDialog";
 import { cn } from "@/lib/utils";
 
 export interface CartDrawerProps {
@@ -46,9 +45,6 @@ export function CartDrawer({
     clampQuantity,
     clearCart,
     hasBlockingIssues,
-    conflictState,
-    confirmSwitchSellerAndAdd,
-    closeConflictDialog,
   } = useCart();
 
   const isEmpty = cart.items.length === 0;
@@ -65,16 +61,6 @@ export function CartDrawer({
   const handleBrowseCatalog = () => {
     onClose();
     router.push(`/${locale}/catalog`);
-  };
-
-  const handleConfirmSwitch = () => {
-    if (conflictState?.pendingProduct) {
-      confirmSwitchSellerAndAdd(
-        conflictState.pendingProduct,
-        conflictState.pendingQuantity
-      );
-    }
-    closeConflictDialog();
   };
 
   return (
@@ -225,18 +211,6 @@ export function CartDrawer({
           </div>
         )}
       </Drawer>
-
-      {/* Multi-Seller Conflict Modal */}
-      {conflictState && (
-        <MultiSellerDialog
-          isOpen={conflictState.isOpen}
-          onClose={closeConflictDialog}
-          currentSellerName={conflictState.existingSellerName}
-          newSellerName={conflictState.newSellerName}
-          onConfirmSwitch={handleConfirmSwitch}
-          onKeepCurrent={closeConflictDialog}
-        />
-      )}
     </>
   );
 }

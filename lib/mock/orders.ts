@@ -1,5 +1,8 @@
 import type { Order, OrderStatus, OrderTimelineItem, Address, OrderSeller } from "@/types/order";
 
+// Deterministic fixed base timestamp (2026-09-03T10:00:00.000Z) to prevent SSR/client hydration mismatches
+const MOCK_BASE_TIME = 1788429600000;
+
 /**
  * Initial Authoritative Mock Orders Dataset
  * Covers all 6 lifecycle statuses: pending, confirmed, preparing, ready, completed, cancelled.
@@ -22,7 +25,7 @@ export const INITIAL_MOCK_ORDERS: Order[] = [
         unit_price_snapshot: "25.00",
         quantity: 2,
         line_total: "50.00",
-        primary_image: "https://images.unsplash.com/photo-1607006314644-8854c86d8a39?auto=format&fit=crop&w=400&q=80",
+        primary_image: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=400&q=80",
       },
       {
         id: 2,
@@ -41,13 +44,13 @@ export const INITIAL_MOCK_ORDERS: Order[] = [
     contact_phone: "+970 59-912-3456",
     delivery_address: "فلسطين، غزة، حي الرمال، شارع عمر المختار بجانب بنك فلسطين، عمارة الأمل، ط 3",
     item_count: 3,
-    created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(), // 25 mins ago
+    created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 25).toISOString(), // 25 mins ago
     notes: "يرجى تغليف العبوة كهدية بعناية مع الشكر",
     timeline: [
       {
         from_status: null,
         to_status: "pending",
-        created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 25).toISOString(),
         note: "تم استلام الطلب وبانتظار تأكيد المتجر للبدء بالتجهيز",
       },
     ],
@@ -88,19 +91,19 @@ export const INITIAL_MOCK_ORDERS: Order[] = [
     contact_phone: "+970 59-912-3456",
     delivery_address: "فلسطين، غزة، حي النصر، شارع اللبابيدي، مقابل مدرسة الهدى",
     item_count: 3,
-    created_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(), // 1.5 hours ago
+    created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 90).toISOString(), // 1.5 hours ago
     notes: "الاتصال عند الوصول",
     timeline: [
       {
         from_status: null,
         to_status: "pending",
-        created_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 90).toISOString(),
         note: "تم استلام الطلب",
       },
       {
         from_status: "pending",
         to_status: "confirmed",
-        created_at: new Date(Date.now() - 1000 * 60 * 75).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 75).toISOString(),
         note: "تمت مراجعة وتأكيد توفر كافة المكونات من قبل المتجر",
       },
     ],
@@ -141,25 +144,25 @@ export const INITIAL_MOCK_ORDERS: Order[] = [
     contact_phone: "+970 59-912-3456",
     delivery_address: "فلسطين، غزة، شارع الوحدة، بجوار مجمع الشفاء الطبي",
     item_count: 3,
-    created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(), // 3 hours ago
+    created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 180).toISOString(), // 3 hours ago
     notes: "",
     timeline: [
       {
         from_status: null,
         to_status: "pending",
-        created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 180).toISOString(),
         note: "تم استلام الطلب",
       },
       {
         from_status: "pending",
         to_status: "confirmed",
-        created_at: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 150).toISOString(),
         note: "تم تأكيد الطلب من الحرفي",
       },
       {
         from_status: "confirmed",
         to_status: "preparing",
-        created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 45).toISOString(),
         note: "يقوم الحرفي حالياً بتحضير وتغليف الزيوت والأعشاب",
       },
     ],
@@ -191,31 +194,31 @@ export const INITIAL_MOCK_ORDERS: Order[] = [
     contact_phone: "+970 59-912-3456",
     delivery_address: "فلسطين، غزة، تل الهوى، بالقرب من مستشفى القدس",
     item_count: 2,
-    created_at: new Date(Date.now() - 1000 * 60 * 300).toISOString(), // 5 hours ago
+    created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 300).toISOString(), // 5 hours ago
     notes: "شحنة قابلة للكسر",
     timeline: [
       {
         from_status: null,
         to_status: "pending",
-        created_at: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 300).toISOString(),
         note: "تم استلام الطلب",
       },
       {
         from_status: "pending",
         to_status: "confirmed",
-        created_at: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 240).toISOString(),
         note: "تم تأكيد توفر الشموع",
       },
       {
         from_status: "confirmed",
         to_status: "preparing",
-        created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 120).toISOString(),
         note: "تم صب وتجهيز الشموع بعناية",
       },
       {
         from_status: "preparing",
         to_status: "ready",
-        created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 15).toISOString(),
         note: "الطلب جاهز للتسليم، وجاري التنسيق مع مندوب التوصيل",
       },
     ],
@@ -247,37 +250,37 @@ export const INITIAL_MOCK_ORDERS: Order[] = [
     contact_phone: "+970 59-912-3456",
     delivery_address: "فلسطين، غزة، حي الرمال، شارع عمر المختار",
     item_count: 3,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), // 2 days ago
+    created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 48).toISOString(), // 2 days ago
     notes: "",
     timeline: [
       {
         from_status: null,
         to_status: "pending",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 48).toISOString(),
         note: "تم استلام الطلب",
       },
       {
         from_status: "pending",
         to_status: "confirmed",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 47).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 47).toISOString(),
         note: "تم تأكيد الطلب",
       },
       {
         from_status: "confirmed",
         to_status: "preparing",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 44).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 44).toISOString(),
         note: "تم التجهيز والتغليف",
       },
       {
         from_status: "preparing",
         to_status: "ready",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 40).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 40).toISOString(),
         note: "تم تسليم الطلب للمندوب",
       },
       {
         from_status: "ready",
         to_status: "completed",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 38).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 38).toISOString(),
         note: "تم استلام الطلب من قبل العميل بنجاح وتم تحصيل المبلغ نقداً",
       },
     ],
@@ -309,20 +312,20 @@ export const INITIAL_MOCK_ORDERS: Order[] = [
     contact_phone: "+970 59-912-3456",
     delivery_address: "فلسطين، غزة، حي النصر",
     item_count: 1,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), // 3 days ago
+    created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 72).toISOString(), // 3 days ago
     cancellation_reason: "طلب بالخطأ - تم تعديل العنوان وإلغاء الطلب القديم",
     notes: "",
     timeline: [
       {
         from_status: null,
         to_status: "pending",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 72).toISOString(),
         note: "تم استلام الطلب",
       },
       {
         from_status: "pending",
         to_status: "cancelled",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 71).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 71).toISOString(),
         note: "تم إلغاء الطلب بناءً على رغبة العميل وإعادة حجز المخزون",
       },
     ],
@@ -363,37 +366,37 @@ export const INITIAL_MOCK_ORDERS: Order[] = [
     contact_phone: "+970 59-912-3456",
     delivery_address: "فلسطين، غزة، حي الرمال الجنوبي، شارع الشهداء",
     item_count: 3,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString(), // 5 days ago
+    created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 120).toISOString(), // 5 days ago
     notes: "",
     timeline: [
       {
         from_status: null,
         to_status: "pending",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 120).toISOString(),
         note: "تم استلام الطلب",
       },
       {
         from_status: "pending",
         to_status: "confirmed",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 118).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 118).toISOString(),
         note: "تم تأكيد الطلب",
       },
       {
         from_status: "confirmed",
         to_status: "preparing",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 100).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 100).toISOString(),
         note: "تم التطريز والتغليف",
       },
       {
         from_status: "preparing",
         to_status: "ready",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 96).toISOString(),
         note: "جاهز للتسليم",
       },
       {
         from_status: "ready",
         to_status: "completed",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 90).toISOString(),
+        created_at: new Date(MOCK_BASE_TIME - 1000 * 60 * 60 * 90).toISOString(),
         note: "تم الاستلام بنجاح",
       },
     ],
@@ -533,6 +536,50 @@ export function advanceOrderStatus(
 
   return { success: true, order };
 }
+
+/**
+ * Updates an order directly to any status (useful for live UI simulation and testing)
+ */
+export function updateOrderStatusDirectly(
+  orderId: number,
+  targetStatus: OrderStatus,
+  note?: string
+): { success: boolean; order?: Order; error?: string } {
+  const orders = getMockOrders();
+  const index = orders.findIndex((o) => o.id === orderId);
+  if (index === -1) {
+    return { success: false, error: "الطلب غير موجود" };
+  }
+
+  const order = { ...orders[index] };
+  const defaultNotes: Record<OrderStatus, string> = {
+    pending: "تم استلام الطلب وبانتظار تأكيد المتجر للبدء بالتجهيز",
+    confirmed: "تمت مراجعة وتأكيد توفر كافة المكونات من قبل المتجر",
+    preparing: "يقوم الحرفي حالياً بتحضير وتغليف المنتجات بعناية",
+    ready: "الطلب جاهز للتسليم، وجاري التنسيق مع مندوب التوصيل",
+    completed: "تم استلام الطلب من قبل العميل بنجاح وتم تحصيل المبلغ",
+    cancelled: "تم إلغاء الطلب وإعادة حجز المنتجات للمخزون",
+  };
+
+  const timelineItem: OrderTimelineItem = {
+    from_status: order.status,
+    to_status: targetStatus,
+    created_at: new Date().toISOString(),
+    note: note || defaultNotes[targetStatus],
+  };
+
+  order.status = targetStatus;
+  if (targetStatus === "cancelled") {
+    order.cancellation_reason = note || "إلغاء تجريبي بواسطة العميل";
+  }
+  order.timeline = [...(order.timeline || []), timelineItem];
+
+  orders[index] = order;
+  saveMockOrders(orders);
+
+  return { success: true, order };
+}
+
 
 /**
  * Customer Cancellation Gate: Allowed ONLY when status is "pending" or "confirmed"

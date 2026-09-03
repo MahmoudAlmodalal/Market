@@ -23,7 +23,7 @@ export function StickyActionBar({
 }: StickyActionBarProps) {
   const { direction, t } = useLocale();
   const isRtl = direction === "rtl";
-  const { addItem } = useCart();
+  const { addItem, cart } = useCart();
 
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
@@ -39,24 +39,45 @@ export function StickyActionBar({
   const availableStock = product.available_quantity ?? product.stock_quantity ?? (product.stock_state === "out_of_stock" ? 0 : 99);
   const isOutOfStock = product.stock_state === "out_of_stock" || availableStock <= 0;
 
+  // React to cart items update (e.g. after resolving multi-seller conflict dialog)
+  const prevItemsRef = React.useRef(cart?.items || []);
+  React.useEffect(() => {
+    const currentItems = cart?.items || [];
+    if (currentItems.length > 0 && currentItems !== prevItemsRef.current) {
+      const currentItem = currentItems.find((i) => String(i.product_id) === String(product.id));
+      const prevItem = prevItemsRef.current.find((i) => String(i.product_id) === String(product.id));
+      if (currentItem && (!prevItem || currentItem.quantity > prevItem.quantity)) {
+        setIsAdded(true);
+        const timer = setTimeout(() => setIsAdded(false), 2200);
+        prevItemsRef.current = currentItems;
+        return () => clearTimeout(timer);
+      }
+    }
+    prevItemsRef.current = currentItems;
+  }, [cart?.items, product.id]);
+
   const handleAddToCart = () => {
     if (isOutOfStock || isSubmitting) return;
 
     setIsSubmitting(true);
 
-    const productToAdd = {
-      ...product,
-      price: unitPrice.toFixed(2),
-      name: selectedVariantName ? `${product.name} (${selectedVariantName})` : product.name,
-    };
+    try {
+      const productToAdd = {
+        ...product,
+        price: unitPrice.toFixed(2),
+        name: selectedVariantName ? `${product.name} (${selectedVariantName})` : product.name,
+      };
 
-    const result = addItem(productToAdd, quantity);
+      const result = addItem(productToAdd, quantity);
 
-    setIsSubmitting(false);
-
-    if (result && result.success) {
-      setIsAdded(true);
-      setTimeout(() => setIsAdded(false), 2200);
+      if (result && result.success) {
+        setIsAdded(true);
+        setTimeout(() => setIsAdded(false), 2200);
+      }
+    } catch (err) {
+      console.error("Failed to add product to cart:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -66,7 +87,7 @@ export function StickyActionBar({
       aria-label="شريط الشراء السريع"
       className={cn(
         // Responsive floating bar: Full-width bottom bar with max-w-7xl inner container
-        "fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-neutral-200/90 pb-[max(env(safe-area-inset-bottom),12px)] pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] select-none transition-all",
+        "fixed bottom-0 inset-x-0 z-[45] bg-white/95 backdrop-blur-md border-t border-neutral-200/90 pb-[max(env(safe-area-inset-bottom),12px)] pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] select-none transition-all",
         className
       )}
     >

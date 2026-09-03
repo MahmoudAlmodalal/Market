@@ -1,18 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowLeft, ShoppingBag } from "lucide-react";
 import { useLocale, useTranslation } from "@/lib/context/LocaleContext";
 import { OrderHistoryList } from "@/components/profile/OrderHistoryList";
 import { Button } from "@/components/ui/Button";
-import { getMockOrders } from "@/lib/mock/orders";
+import { getMockOrders, INITIAL_MOCK_ORDERS } from "@/lib/mock/orders";
 import type { Order } from "@/types/order";
 
 export default function OrdersPage() {
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
-  const [orders, setOrders] = useState<Order[]>(() => getMockOrders());
+  const [orders, setOrders] = useState<Order[]>(INITIAL_MOCK_ORDERS);
+
+  useEffect(() => {
+    setOrders(getMockOrders());
+  }, []);
 
   return (
     <div className="w-full max-w-6xl xl:max-w-7xl mx-auto pb-24 md:pb-12 animate-in fade-in duration-200">

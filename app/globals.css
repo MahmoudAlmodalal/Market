@@ -136,4 +136,25 @@
     min-height: 44px;
     min-width: 44px;
   }
+
+  /* Receipt Print Styling */
+  @media print {
+    header, nav, .no-print, [data-no-print], button, a[href^="tel:"], a[href*="wa.me"] {
+      display: none !important;
+    }
+    body, html {
+      background: #FFFFFF !important;
+      color: #000000 !important;
+    }
+    .print-only {
+      display: block !important;
+    }
+    .print-receipt-container {
+      box-shadow: none !important;
+      border: 1px solid #000 !important;
+      max-width: 100% !important;
+      padding: 0 !important;
+    }
+  }
 }
+

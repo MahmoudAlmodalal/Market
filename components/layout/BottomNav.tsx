@@ -30,6 +30,13 @@ export function BottomNav({ cartCount, className }: BottomNavProps) {
   const pathname = usePathname() || `/${locale}`;
   const effectiveCartCount = cartCount !== undefined ? cartCount : (cartContext?.itemCount ?? 0);
 
+  // Hide BottomNav on Product Detail Pages (PDP) and Checkout to avoid collision with StickyActionBar
+  const isPdp = pathname.includes("/products/");
+  const isCheckout = pathname.includes("/checkout");
+  if (isPdp || isCheckout) {
+    return null;
+  }
+
   const navItems = [
     {
       label: t("nav.home", "الرئيسية"),

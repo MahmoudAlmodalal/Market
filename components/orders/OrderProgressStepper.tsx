@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { useTranslation, useLocale } from "@/lib/context/LocaleContext";
+import React, { useState, useEffect } from "react";
+import { useLocale } from "@/lib/context/LocaleContext";
 import { cn } from "@/lib/utils";
 import type { OrderStatus, OrderTimelineItem } from "@/types/order";
 import {
@@ -13,6 +13,7 @@ import {
   XCircle,
   Check,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 
 export interface OrderProgressStepperProps {
@@ -37,7 +38,7 @@ const STEPS: StepConfig[] = [
     key: "pending",
     labelAr: "قيد الانتظار",
     labelEn: "Pending",
-    descAr: "تم استلام الطلب وبانتظار تأكيد المتجر",
+    descAr: "تم استلام الطلب وبانتظار تأكيد المتجر للبدء بالتجهيز",
     descEn: "Order placed, awaiting merchant confirmation",
     icon: Clock,
   },
@@ -45,7 +46,7 @@ const STEPS: StepConfig[] = [
     key: "confirmed",
     labelAr: "تم التأكيد",
     labelEn: "Confirmed",
-    descAr: "تم تأكيد توفر المنتجات وقبول الطلب",
+    descAr: "تمت مراجعة وتأكيد توفر كافة المكونات من قبل المتجر",
     descEn: "Merchant confirmed items and accepted order",
     icon: CheckCircle2,
   },
@@ -53,7 +54,7 @@ const STEPS: StepConfig[] = [
     key: "preparing",
     labelAr: "جاري التجهيز",
     labelEn: "Preparing",
-    descAr: "يقوم المتجر بتحضير وتغليف طلبك بعناية",
+    descAr: "يقوم الحرفي حالياً بتحضير وتغليف المنتجات بعناية",
     descEn: "Merchant is preparing and packing your order",
     icon: ChefHat,
   },
@@ -61,15 +62,15 @@ const STEPS: StepConfig[] = [
     key: "ready",
     labelAr: "جاهز للتسليم",
     labelEn: "Ready for Delivery",
-    descAr: "تم تجهيز الطلب وبانتظار مندوب التوصيل",
-    descEn: "Order is ready for pickup/courier handover",
+    descAr: "الطلب جاهز للتسليم، وجاري التنسيق مع مندوب التوصيل",
+    descEn: "Order is ready for pickup and courier handover",
     icon: Truck,
   },
   {
     key: "completed",
     labelAr: "تم الاستلام",
     labelEn: "Completed",
-    descAr: "تم تسليم الطلب بنجاح للعميل",
+    descAr: "تم تسليم الطلب للعميل بنجاح وتم تحصيل المبلغ",
     descEn: "Order delivered successfully to customer",
     icon: PackageCheck,
   },
@@ -91,14 +92,19 @@ export function OrderProgressStepper({
   className,
   variant = "full",
 }: OrderProgressStepperProps) {
-  const { t, locale, direction } = useLocale();
+  const { locale, direction } = useLocale();
   const isRtl = direction === "rtl";
   const isCancelled = status === "cancelled";
   const currentIndex = STATUS_ORDER[status] ?? 0;
 
-  // Helper to format timestamp
+  // Hydration safety for date formatting
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const formatTime = (isoString?: string) => {
-    if (!isoString) return "";
+    if (!isoString || !isMounted) return "";
     try {
       const date = new Date(isoString);
       return new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-US", {
@@ -111,7 +117,6 @@ export function OrderProgressStepper({
     }
   };
 
-  // Helper to find timeline item timestamp for step
   const getTimelineTime = (stepKey: OrderStatus) => {
     const item = timeline.find((t) => t.to_status === stepKey);
     return item ? formatTime(item.created_at) : "";
@@ -131,37 +136,39 @@ export function OrderProgressStepper({
     return (
       <div
         className={cn(
-          "bg-danger-50 border border-danger-200 rounded-2xl p-4.5 text-danger-900",
+          "bg-red-50/80 border border-red-200/90 rounded-2xl p-5 text-red-950 space-y-3.5 shadow-soft-sm",
           className
         )}
       >
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-danger-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+        <div className="flex items-start gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm">
             <XCircle className="w-6 h-6" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <h3 className="font-bold text-base text-danger-900">
-                {locale === "ar" ? "تم إلغاء هذا الطلب" : "Order Cancelled"}
+            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+              <h3 className="font-bold text-base text-red-900 flex items-center gap-1.5">
+                <span>{locale === "ar" ? "تم إلغاء هذا الطلب" : "Order Cancelled"}</span>
               </h3>
               {cancelTime && (
-                <span className="text-xs font-medium text-danger-700 bg-danger-100/80 px-2 py-0.5 rounded-md">
+                <span className="text-xs font-semibold text-red-700 bg-red-100/90 px-2.5 py-1 rounded-full tabular-nums">
                   {cancelTime}
                 </span>
               )}
             </div>
-            <p className="text-xs text-danger-700 leading-relaxed mb-2">
+
+            <p className="text-xs text-red-800 leading-relaxed font-medium">
               {cancellationReason ||
                 (locale === "ar"
-                  ? "تم إلغاء الطلب وإعادة المنتجات للمخزون."
-                  : "This order was cancelled and inventory has been restored.")}
+                  ? "تم إلغاء الطلب بناءً على رغبة العميل وإعادة حجز المنتجات للمخزون."
+                  : "This order was cancelled and items have been returned to stock.")}
             </p>
-            <div className="flex items-center gap-1.5 text-xs text-danger-600 font-medium">
-              <AlertCircle className="w-3.5 h-3.5" />
+
+            <div className="flex items-center gap-2 text-xs text-red-700 font-semibold mt-3 pt-2.5 border-t border-red-200/60">
+              <AlertCircle className="w-4 h-4 shrink-0" />
               <span>
                 {locale === "ar"
-                  ? "لا يمكن استئناف الطلب بعد إلغائه"
-                  : "Cancelled orders cannot be resumed"}
+                  ? "لم يتم خصم أي مبالغ، ويمكنك طلب المنتجات مجدداً في أي وقت."
+                  : "No charges were made. You can reorder these items anytime."}
               </span>
             </div>
           </div>
@@ -170,29 +177,49 @@ export function OrderProgressStepper({
     );
   }
 
+  // Calculate percentage for top horizontal progress line
+  const progressPercentage =
+    currentIndex >= 0 ? (currentIndex / (STEPS.length - 1)) * 100 : 0;
+
   return (
     <div
       className={cn(
-        "bg-white border border-neutral-200/80 rounded-2xl p-4 shadow-sm",
+        "bg-white border border-neutral-200/90 rounded-2xl p-4 sm:p-5 shadow-soft-sm space-y-6",
         className
       )}
     >
-      {/* Horizontal Top Progress Bar */}
-      <div className="mb-6 pt-2 px-1">
-        <div className="relative flex items-center justify-between">
-          {/* Background Track Line */}
-          <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-1 bg-neutral-100 rounded-full z-0" />
+      {/* Header title with live indicator */}
+      <div className="flex items-center justify-between pb-1 border-b border-neutral-100">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <h2 className="text-xs sm:text-sm font-bold text-neutral-800 uppercase tracking-wider">
+            {locale === "ar" ? "مسار التقدم المباشر" : "Live Progress Tracking"}
+          </h2>
+        </div>
 
-          {/* Active Filled Track Line */}
+        <span className="text-[11px] font-bold text-brand-600 bg-brand-50 border border-brand-100/80 px-2.5 py-0.5 rounded-full">
+          {locale === "ar"
+            ? `المرحلة ${currentIndex + 1} من ${STEPS.length}`
+            : `Step ${currentIndex + 1} of ${STEPS.length}`}
+        </span>
+      </div>
+
+      {/* Horizontal Bar Stepper */}
+      <div className="pt-2 pb-1 px-1">
+        <div className="relative flex items-center justify-between">
+          {/* Background Gray Track */}
+          <div className="absolute top-1/2 left-3 right-3 -translate-y-1/2 h-1.5 bg-neutral-100 rounded-full z-0" />
+
+          {/* Active Gradient Filled Track */}
           <div
-            className="absolute top-1/2 h-1 bg-brand-500 rounded-full transition-all duration-500 ease-out z-0"
+            className="absolute top-1/2 h-1.5 bg-gradient-to-r from-brand-500 to-brand-600 rounded-full transition-all duration-700 ease-out z-0 shadow-sm"
             style={{
-              [isRtl ? "right" : "left"]: 0,
-              width: `${(Math.max(0, currentIndex) / (STEPS.length - 1)) * 100}%`,
+              [isRtl ? "right" : "left"]: "12px",
+              width: `calc(${progressPercentage}% - 12px)`,
             }}
           />
 
-          {/* Stepper Dots */}
+          {/* Step Icon Nodes */}
           {STEPS.map((step, idx) => {
             const isCompleted = idx < currentIndex;
             const isCurrent = idx === currentIndex;
@@ -202,17 +229,17 @@ export function OrderProgressStepper({
             return (
               <div
                 key={step.key}
-                className="relative z-10 flex flex-col items-center group"
+                className="relative z-10 flex flex-col items-center group cursor-default"
               >
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
+                    "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300",
                     isCompleted &&
-                      "bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-100",
+                      "bg-emerald-600 text-white shadow-soft-sm ring-2 ring-emerald-100",
                     isCurrent &&
-                      "bg-brand-500 text-white shadow-soft ring-4 ring-brand-100 scale-110 animate-pulse-subtle",
+                      "bg-brand-500 text-white shadow-glow ring-4 ring-brand-100/90 scale-110 animate-pulse-subtle",
                     isUpcoming &&
-                      "bg-white border-2 border-neutral-300 text-neutral-400"
+                      "bg-white border-2 border-neutral-200 text-neutral-400 group-hover:border-neutral-300"
                   )}
                   aria-label={`${locale === "ar" ? step.labelAr : step.labelEn} - ${
                     isCompleted
@@ -221,19 +248,31 @@ export function OrderProgressStepper({
                         : "Completed"
                       : isCurrent
                       ? locale === "ar"
-                        ? "الحالة الحالية"
+                        ? "المرحلة الحالية"
                         : "Current step"
                       : locale === "ar"
                       ? "قادم"
-                      : "Pending"
+                      : "Upcoming"
                   }`}
                 >
                   {isCompleted ? (
-                    <Check className="w-4 h-4 stroke-[3]" />
+                    <Check className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" />
                   ) : (
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                   )}
                 </div>
+
+                {/* Micro step label for desktop */}
+                <span
+                  className={cn(
+                    "hidden sm:block text-[11px] font-semibold mt-1.5 text-center whitespace-nowrap transition-colors",
+                    isCurrent && "text-brand-600 font-bold",
+                    isCompleted && "text-neutral-800",
+                    isUpcoming && "text-neutral-400"
+                  )}
+                >
+                  {locale === "ar" ? step.labelAr : step.labelEn}
+                </span>
               </div>
             );
           })}
@@ -241,7 +280,7 @@ export function OrderProgressStepper({
       </div>
 
       {/* Vertical Detailed Timeline Section */}
-      <div className="space-y-4 pt-1">
+      <div className="space-y-4 pt-2">
         {STEPS.map((step, idx) => {
           const isCompleted = idx < currentIndex;
           const isCurrent = idx === currentIndex;
@@ -254,29 +293,30 @@ export function OrderProgressStepper({
             <div
               key={step.key}
               className={cn(
-                "relative flex items-start gap-3.5 transition-opacity duration-200",
-                isUpcoming && "opacity-45"
+                "relative flex items-start gap-3.5 transition-all duration-300 rounded-xl p-2.5",
+                isCurrent && "bg-brand-50/40 border border-brand-100/80 shadow-soft-sm",
+                isUpcoming && "opacity-45 hover:opacity-60"
               )}
             >
-              {/* Connector line between vertical items */}
+              {/* Connector line */}
               {idx < STEPS.length - 1 && (
                 <div
                   className={cn(
-                    "absolute top-8 w-0.5 h-[calc(100%-12px)] transition-colors duration-300",
-                    isRtl ? "right-4 -mr-[1px]" : "left-4 -ml-[1px]",
+                    "absolute top-10 w-0.5 h-[calc(100%-12px)] transition-colors duration-300 z-0",
+                    isRtl ? "right-6 -mr-[1px]" : "left-6 -ml-[1px]",
                     isCompleted ? "bg-emerald-500" : isCurrent ? "bg-brand-300" : "bg-neutral-200"
                   )}
                 />
               )}
 
-              {/* Vertical Step Icon Badge */}
+              {/* Step Icon Badge */}
               <div
                 className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 transition-all duration-300",
-                  isCompleted && "bg-emerald-500 text-white shadow-xs",
+                  "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 z-10 transition-all duration-300 shadow-xs",
+                  isCompleted && "bg-emerald-600 text-white ring-2 ring-emerald-100",
                   isCurrent &&
                     "bg-brand-500 text-white shadow-soft ring-4 ring-brand-100 scale-105",
-                  isUpcoming && "bg-neutral-100 border border-neutral-300 text-neutral-400"
+                  isUpcoming && "bg-neutral-100 border border-neutral-200 text-neutral-400"
                 )}
               >
                 {isCompleted ? (
@@ -287,33 +327,61 @@ export function OrderProgressStepper({
               </div>
 
               {/* Step Details */}
-              <div className="flex-1 min-w-0 pb-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={cn(
-                      "text-sm font-bold leading-tight",
-                      isCurrent && "text-brand-600",
-                      isCompleted && "text-neutral-900",
-                      isUpcoming && "text-neutral-500"
-                    )}
-                  >
-                    {locale === "ar" ? step.labelAr : step.labelEn}
-                  </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "text-sm font-bold leading-tight",
+                        isCurrent && "text-brand-600",
+                        isCompleted && "text-neutral-900",
+                        isUpcoming && "text-neutral-500"
+                      )}
+                    >
+                      {locale === "ar" ? step.labelAr : step.labelEn}
+                    </span>
 
-                  {time && (
-                    <span className="text-xs font-semibold text-neutral-500 tabular-nums bg-neutral-100 px-2 py-0.5 rounded-md">
+                    {isCurrent && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-700 bg-brand-100/90 px-2 py-0.5 rounded-md animate-pulse">
+                        <Sparkles className="w-3 h-3 text-brand-500" />
+                        <span>{locale === "ar" ? "المرحلة الحالية" : "Active Stage"}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {time ? (
+                    <span className="text-[11px] font-semibold text-neutral-500 tabular-nums bg-neutral-100 px-2.5 py-0.5 rounded-md">
                       {time}
                     </span>
-                  )}
+                  ) : isCurrent ? (
+                    <span className="text-[11px] font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md">
+                      {locale === "ar" ? "قيد التنفيذ الآن" : "In Progress"}
+                    </span>
+                  ) : null}
                 </div>
 
-                <p className="text-xs text-neutral-600 mt-1 leading-relaxed">
+                <p
+                  className={cn(
+                    "text-xs leading-relaxed font-normal",
+                    isCurrent ? "text-neutral-800 font-medium" : "text-neutral-600"
+                  )}
+                >
                   {note}
                 </p>
               </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Reassurance Footer */}
+      <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-100 text-xs text-neutral-600 flex items-center gap-2.5">
+        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <span className="leading-relaxed">
+          {locale === "ar"
+            ? "يتم تحديث مسار الطلب آلياً عند إتمام كل خطوة بواسطة التاجر أو مندوب التوصيل."
+            : "Tracking milestones are updated in real-time by the artisan and courier."}
+        </span>
       </div>
     </div>
   );

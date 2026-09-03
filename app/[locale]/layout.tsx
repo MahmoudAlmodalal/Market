@@ -1,12 +1,15 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import { LocaleProvider } from "@/lib/context/LocaleContext";
+import { AuthProvider } from "@/lib/context/AuthContext";
 import { CartProvider } from "@/lib/context/CartContext";
 import { NotificationProvider } from "@/lib/context/NotificationContext";
 import { MobileContainer } from "@/components/layout/MobileContainer";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { BottomNav } from "@/components/layout/BottomNav";
 import type { Locale } from "@/types/i18n";
+
+import { ToastProvider } from "@/components/ui/Toast";
 
 const VALID_LOCALES: Locale[] = ["ar", "en"];
 
@@ -27,15 +30,20 @@ export default async function LocaleLayout({
 
   return (
     <LocaleProvider initialLocale={locale}>
-      <CartProvider>
-        <NotificationProvider>
-          <MobileContainer>
-            <AppHeader />
-            <main className="flex-1 w-full">{children}</main>
-            <BottomNav />
-          </MobileContainer>
-        </NotificationProvider>
-      </CartProvider>
+      <AuthProvider>
+        <CartProvider>
+          <NotificationProvider>
+            <ToastProvider>
+              <MobileContainer>
+                <AppHeader />
+                <main className="flex-1 w-full">{children}</main>
+                <BottomNav />
+              </MobileContainer>
+            </ToastProvider>
+          </NotificationProvider>
+        </CartProvider>
+      </AuthProvider>
     </LocaleProvider>
   );
 }
+

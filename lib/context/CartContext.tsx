@@ -24,6 +24,7 @@ import {
   INITIAL_EMPTY_CART,
   MOCK_VOUCHERS,
 } from "@/lib/mock/cart";
+import { MultiSellerDialog } from "@/components/cart/MultiSellerDialog";
 
 const CART_STORAGE_KEY = "souqi_cart_v1";
 const VOUCHER_STORAGE_KEY = "souqi_voucher_v1";
@@ -117,7 +118,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       if (savedCart) {
         const parsed = JSON.parse(savedCart);
-        setCart(parsed);
+        if (parsed && Array.isArray(parsed.items)) {
+          setCart(parsed);
+        } else {
+          setCart(INITIAL_DEMO_CART);
+        }
       } else {
         // Fallback to initial demo cart
         setCart(INITIAL_DEMO_CART);
@@ -179,7 +184,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addItem = useCallback(
     (product: any, quantity: number = 1) => {
       const rawSellerId =
-        product.seller?.id ?? product.sellerId ?? (product.seller_name ? 101 : 101);
+        product.seller?.id ?? product.seller_id ?? product.sellerId ?? (product.seller_name ? 101 : 101);
       const rawSellerName =
         product.seller?.business_name ??
         product.seller?.name ??
@@ -225,8 +230,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           neighborhood: rawSellerNeighborhood,
         };
 
-        const existingIndex = prev.items.findIndex(
-          (item) => item.product_id === product.id
+        const itemsList = Array.isArray(prev.items) ? prev.items : [];
+        const existingIndex = itemsList.findIndex(
+          (item) => String(item.product_id) === String(product.id)
         );
 
         let newItems: CartItem[];
@@ -238,7 +244,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           product.stock_quantity ?? product.available_quantity ?? 999;
 
         if (existingIndex >= 0) {
-          newItems = [...prev.items];
+          newItems = [...itemsList];
           const current = newItems[existingIndex];
           const newQty = Math.min(current.quantity + quantity, availableStock);
           newItems[existingIndex] = {
@@ -248,9 +254,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
           };
         } else {
           const itemQuantity = Math.min(quantity, availableStock);
+          const rawImg =
+            product.primary_image ??
+            (typeof product.images?.[0] === "string"
+              ? product.images[0]
+              : product.images?.[0]?.image) ??
+            "/images/placeholder.jpg";
           const newItem: CartItem = {
             id: Date.now() + Math.floor(Math.random() * 1000),
-            product_id: product.id,
+            product_id: Number(product.id),
             name:
               product.name ??
               product.title_ar ??
@@ -260,10 +272,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             quantity: itemQuantity,
             line_total: calculateItemLineTotal(priceStr, itemQuantity),
             stock_state: product.stock_state || "available",
-            primary_image:
-              product.primary_image ??
-              (product.images && product.images[0]) ??
-              "/images/placeholder.jpg",
+            primary_image: rawImg,
             seller_name: rawSellerName,
             seller_id: rawSellerId,
             issues: [],
@@ -271,7 +280,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             price_at_addition: priceStr,
             current_server_price: priceStr,
           };
-          newItems = [...prev.items, newItem];
+          newItems = [...itemsList, newItem];
         }
 
         return { items: newItems, seller: newSeller };
@@ -288,7 +297,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const confirmSwitchSellerAndAdd = useCallback(
     (product: any, quantity: number = 1) => {
       const rawSellerId =
-        product.seller?.id ?? product.sellerId ?? 101;
+        product.seller?.id ?? product.seller_id ?? product.sellerId ?? 101;
       const rawSellerName =
         product.seller?.business_name ??
         product.seller?.name ??
@@ -311,9 +320,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
         neighborhood: rawSellerNeighborhood,
       };
 
+      const rawImg =
+        product.primary_image ??
+        (typeof product.images?.[0] === "string"
+          ? product.images[0]
+          : product.images?.[0]?.image) ??
+        "/images/placeholder.jpg";
+
       const newItem: CartItem = {
         id: Date.now(),
-        product_id: product.id,
+        product_id: Number(product.id),
         name:
           product.name ??
           product.title_ar ??
@@ -323,10 +339,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         quantity: itemQuantity,
         line_total: calculateItemLineTotal(priceStr, itemQuantity),
         stock_state: product.stock_state || "available",
-        primary_image:
-          product.primary_image ??
-          (product.images && product.images[0]) ??
-          "/images/placeholder.jpg",
+        primary_image: rawImg,
         seller_name: rawSellerName,
         seller_id: rawSellerId,
         issues: [],
@@ -653,7 +666,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <CartContext.Provider value={contextValue}>{children}</CartContext.Provider>
+    <CartContext.Provider value={contextValue}>
+      {children}
+      {conflictState && (
+        <MultiSellerDialog
+          isOpen={conflictState.isOpen}
+          onClose={closeConflictDialog}
+          currentSellerName={conflictState.existingSellerName}
+          newSellerName={conflictState.newSellerName}
+          onConfirmSwitch={() => {
+            if (conflictState.pendingProduct) {
+              confirmSwitchSellerAndAdd(
+                conflictState.pendingProduct,
+                conflictState.pendingQuantity
+              );
+            } else {
+              closeConflictDialog();
+            }
+          }}
+          onKeepCurrent={closeConflictDialog}
+        />
+      )}
+    </CartContext.Provider>
   );
 }
 

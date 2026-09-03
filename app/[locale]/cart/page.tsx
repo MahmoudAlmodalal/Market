@@ -23,7 +23,6 @@ import { CartHeader } from "@/components/cart/CartHeader";
 import { CartLineItem } from "@/components/cart/CartLineItem";
 import { CouponInput } from "@/components/cart/CouponInput";
 import { OrderPricingBreakdown } from "@/components/cart/OrderPricingBreakdown";
-import { MultiSellerDialog } from "@/components/cart/MultiSellerDialog";
 
 export default function CartPage() {
   const router = useRouter();
@@ -39,25 +38,12 @@ export default function CartPage() {
     clearCart,
     hasBlockingIssues,
     isLoading,
-    conflictState,
-    confirmSwitchSellerAndAdd,
-    closeConflictDialog,
   } = useCart();
 
   const [hasError, setHasError] = useState(false);
 
   const handleProceedToCheckout = () => {
     router.push(`/${locale}/checkout`);
-  };
-
-  const handleConfirmSwitch = () => {
-    if (conflictState?.pendingProduct) {
-      confirmSwitchSellerAndAdd(
-        conflictState.pendingProduct,
-        conflictState.pendingQuantity
-      );
-    }
-    closeConflictDialog();
   };
 
   // 1. Loading Skeleton State
@@ -229,18 +215,6 @@ export default function CartPage() {
           />
         </div>
       </div>
-
-      {/* Multi-Seller Conflict Modal */}
-      {conflictState && (
-        <MultiSellerDialog
-          isOpen={conflictState.isOpen}
-          onClose={closeConflictDialog}
-          currentSellerName={conflictState.existingSellerName}
-          newSellerName={conflictState.newSellerName}
-          onConfirmSwitch={handleConfirmSwitch}
-          onKeepCurrent={closeConflictDialog}
-        />
-      )}
     </div>
   );
 }
