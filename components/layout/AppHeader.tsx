@@ -21,7 +21,6 @@ import {
   LayoutGrid,
   Package,
   User,
-  Store,
   Search,
   Sparkles,
 } from "lucide-react";
@@ -93,7 +92,13 @@ export function AppHeader({
 
   const BackIcon = direction === "rtl" ? ArrowRight : ArrowLeft;
 
-  const navLinks = [
+  const navLinks: {
+    label: string;
+    href: string;
+    icon: typeof Home;
+    matchExact: boolean;
+    badge?: string;
+  }[] = [
     {
       label: t("nav.home", "الرئيسية"),
       href: `/${locale}`,
@@ -111,13 +116,6 @@ export function AppHeader({
       href: `/${locale}/orders`,
       icon: Package,
       matchExact: false,
-    },
-    {
-      label: locale === "ar" ? "لوحة التاجر" : "Seller Portal",
-      href: `/${locale}/seller/dashboard`,
-      icon: Store,
-      matchExact: false,
-      badge: locale === "ar" ? "جديد" : "New",
     },
   ];
 

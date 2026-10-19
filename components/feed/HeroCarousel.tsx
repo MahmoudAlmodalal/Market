@@ -137,13 +137,13 @@ export function HeroCarousel({
                 </div>
               )}
 
-              {/* Dynamic typography scaling from mobile text-base to desktop text-3xl */}
-              <h3 className="text-white text-base sm:text-xl md:text-2xl lg:text-3xl font-extrabold leading-tight line-clamp-1 drop-shadow-sm">
+              {/* Dynamic typography scaling; capped at text-2xl on desktop (lg:text-3xl felt oversized) */}
+              <h3 className="text-white text-base sm:text-xl md:text-2xl lg:text-2xl font-extrabold leading-tight line-clamp-1 drop-shadow-sm">
                 {banner.title}
               </h3>
 
               {banner.subtitle && (
-                <p className="text-neutral-200 text-xs sm:text-sm lg:text-base line-clamp-2 mt-0.5 sm:mt-1 font-normal opacity-95 max-w-xl">
+                <p className="text-neutral-200 text-xs sm:text-sm lg:text-sm line-clamp-2 mt-0.5 sm:mt-1 font-normal opacity-95 max-w-xl">
                   {banner.subtitle}
                 </p>
               )}
