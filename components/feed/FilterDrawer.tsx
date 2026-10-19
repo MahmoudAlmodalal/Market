@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Drawer } from "@/components/ui/Drawer";
 import { Button } from "@/components/ui/Button";
 import { useTranslation, useLocale } from "@/lib/context/LocaleContext";
+import { getLocalizedCategoryName } from "@/lib/i18n/catalogTranslations";
 import type { Category, StockState } from "@/types/catalog";
 import { Check, Filter, RotateCcw, ArrowUpDown, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,7 @@ export function FilterDrawer({
   onReset,
 }: FilterDrawerProps) {
   const { t } = useTranslation();
-  const { isRtl } = useLocale();
+  const { isRtl, locale } = useLocale();
 
   const [category, setCategory] = useState<number | null>(initialFilters.category);
   const [ordering, setOrdering] = useState<FilterValues["ordering"]>(initialFilters.ordering || "-created_at");
@@ -164,7 +165,7 @@ export function FilterDrawer({
                       : "bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300"
                   )}
                 >
-                  {cat.name}
+                  {getLocalizedCategoryName(cat.name, locale)}
                 </button>
               );
             })}

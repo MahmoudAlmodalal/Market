@@ -7,10 +7,14 @@ import { Input } from "@/components/ui/Input";
 import {
   CategoryFilterStrip,
   FilterDrawer,
+  HeroCarousel,
+  StoriesStrip,
   type FilterValues,
 } from "@/components/feed";
 import { CatalogGrid } from "@/components/catalog";
 import type { Category, ProductListItem } from "@/lib/api/types";
+import { getLocalizedStories, getLocalizedBanners } from "@/lib/mock/stories";
+import { getLocalizedCategoryName } from "@/lib/i18n/catalogTranslations";
 import { Search, SlidersHorizontal, Flame, ArrowRight, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -39,6 +43,9 @@ export function HomeFeedClient({
 
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+
+  const stories = React.useMemo(() => getLocalizedStories(locale), [locale]);
+  const banners = React.useMemo(() => getLocalizedBanners(locale), [locale]);
 
   // Sync state when props change
   useEffect(() => {
@@ -132,7 +139,25 @@ export function HomeFeedClient({
         </button>
       </div>
 
-      {/* 2. Horizontal Category Filter Strip */}
+      {/* 2. Merchant Highlights Stories Strip */}
+      <div className="w-full">
+        <div className="px-3 sm:px-6 lg:px-8 xl:px-12 pb-1 flex items-center justify-between">
+          <span className="text-xs sm:text-sm font-bold text-neutral-800">
+            {locale === "ar" ? "قصص وتحديثات التجار" : "Merchant Stories"}
+          </span>
+          <span className="text-[10px] sm:text-xs text-brand-500 font-semibold">
+            {locale === "ar" ? "طازج اليوم" : "Fresh Today"}
+          </span>
+        </div>
+        <StoriesStrip stories={stories} />
+      </div>
+
+      {/* 3. Hero Promotional Banners Carousel */}
+      <div className="w-full px-3 sm:px-6 lg:px-8 xl:px-12">
+        <HeroCarousel banners={banners} />
+      </div>
+
+      {/* 4. Horizontal Category Filter Strip */}
       <div className="w-full flex flex-col gap-1.5">
         <div className="px-3 sm:px-6 lg:px-8 xl:px-12 flex items-center justify-between">
           <h2 className="text-xs sm:text-sm font-bold text-neutral-800">
@@ -154,13 +179,13 @@ export function HomeFeedClient({
         />
       </div>
 
-      {/* 3. Feed Section Header */}
+      {/* 5. Feed Section Header */}
       <div className="px-3 sm:px-6 lg:px-8 xl:px-12 flex items-center justify-between pt-1 sm:pt-2">
         <div className="flex items-center gap-1.5 sm:gap-2">
           <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-brand-500" />
           <h2 className="text-sm sm:text-base lg:text-lg font-bold text-neutral-900">
             {selectedCategoryObj
-              ? selectedCategoryObj.name
+              ? getLocalizedCategoryName(selectedCategoryObj.name, locale)
               : t("catalog.featuredProducts", "منتجات مختارة لك")}
           </h2>
         </div>

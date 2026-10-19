@@ -4,6 +4,10 @@ import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "@/lib/context/LocaleContext";
+import {
+  getLocalizedCategoryName,
+  getLocalizedProductName,
+} from "@/lib/i18n/catalogTranslations";
 import { ChevronLeft, ChevronRight, Home } from "lucide-react";
 import type { CategorySimple } from "@/lib/api/types";
 
@@ -47,13 +51,13 @@ export function ProductDetailHeader({
                 href={`/${locale}/catalog?category=${category.id}`}
                 className="hover:text-brand-600 transition-colors truncate max-w-[120px]"
               >
-                {category.name}
+                {getLocalizedCategoryName(category.name, locale)}
               </Link>
               <span className="text-neutral-300">/</span>
             </>
           )}
           <span className="text-neutral-900 font-bold truncate">
-            {productName}
+            {getLocalizedProductName(productName, locale)}
           </span>
         </div>
 

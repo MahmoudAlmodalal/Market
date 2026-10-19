@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/types/catalog";
 import { useTranslation, useLocale } from "@/lib/context/LocaleContext";
+import { getLocalizedCategoryName } from "@/lib/i18n/catalogTranslations";
 import {
   Sparkles,
   Droplet,
@@ -54,7 +55,7 @@ export function CategoryFilterStrip({
   className,
 }: CategoryFilterStripProps) {
   const { t } = useTranslation();
-  const { direction } = useLocale();
+  const { direction, locale } = useLocale();
   const isRtl = direction === "rtl";
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -116,7 +117,7 @@ export function CategoryFilterStrip({
               )}
             >
               {Icon && <span className={cn(isSelected ? "text-white" : "text-brand-500")}>{Icon}</span>}
-              <span>{category.name}</span>
+              <span>{getLocalizedCategoryName(category.name, locale)}</span>
               {category.product_count !== undefined && (
                 <span
                   className={cn(

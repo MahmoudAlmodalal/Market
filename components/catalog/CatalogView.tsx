@@ -11,6 +11,7 @@ import {
 } from "@/components/feed";
 import { CatalogGrid } from "@/components/catalog";
 import type { Category, ProductListItem } from "@/lib/api/types";
+import { getLocalizedCategoryName } from "@/lib/i18n/catalogTranslations";
 import {
   Search,
   SlidersHorizontal,
@@ -233,7 +234,7 @@ export function CatalogView({
                       : "text-neutral-600 hover:bg-neutral-50"
                   )}
                 >
-                  <span className="truncate">{c.name}</span>
+                  <span className="truncate">{getLocalizedCategoryName(c.name, locale)}</span>
                   {initialCategory === c.id && <Check className="w-3.5 h-3.5 text-brand-500" />}
                 </button>
               ))}
@@ -311,7 +312,10 @@ export function CatalogView({
                 <span className="inline-flex items-center gap-1.5 bg-brand-50 text-brand-700 border border-brand-200 text-xs font-semibold px-3 py-1 rounded-pill">
                   <Tag className="w-3 h-3" />
                   <span>
-                    {categories.find((c) => c.id === initialCategory)?.name}
+                    {getLocalizedCategoryName(
+                      categories.find((c) => c.id === initialCategory)?.name || "",
+                      locale
+                    )}
                   </span>
                   <button
                     type="button"

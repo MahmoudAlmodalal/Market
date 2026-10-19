@@ -7,6 +7,11 @@ import type { Product, StockState } from "@/types/catalog";
 import type { ProductListItem } from "@/lib/api/types";
 import { useTranslation, useLocale } from "@/lib/context/LocaleContext";
 import { useCart } from "@/lib/context/CartContext";
+import {
+  getLocalizedProductName,
+  getLocalizedCategoryName,
+  getLocalizedSellerName,
+} from "@/lib/i18n/catalogTranslations";
 import { Badge } from "@/components/ui/Badge";
 import { ShoppingBag, Check, Sparkles, AlertCircle } from "lucide-react";
 
@@ -157,11 +162,11 @@ export function ProductCard({
           {/* Seller Name & Category */}
           <div className="flex items-center justify-between text-[11px] text-neutral-500 gap-1">
             <span className="truncate max-w-[65%] font-medium">
-              {product.seller_name || sellerBusinessName || ""}
+              {getLocalizedSellerName(product.seller_name || sellerBusinessName || "", locale)}
             </span>
             {product.category?.name && (
               <span className="truncate text-neutral-400 text-[10px]">
-                {product.category.name}
+                {getLocalizedCategoryName(product.category.name, locale)}
               </span>
             )}
           </div>
@@ -172,7 +177,7 @@ export function ProductCard({
             className="focus:outline-none focus-visible:underline"
           >
             <h3 className="font-cairo font-bold text-[13px] sm:text-sm text-neutral-900 leading-snug line-clamp-2 min-h-[36px] group-hover:text-brand-600 transition-colors">
-              {product.name}
+              {getLocalizedProductName(product.name, locale)}
             </h3>
           </Link>
         </div>

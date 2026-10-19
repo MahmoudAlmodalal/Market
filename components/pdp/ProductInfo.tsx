@@ -16,6 +16,11 @@ import {
   AlertTriangle,
   XCircle,
 } from "lucide-react";
+import {
+  getLocalizedProductName,
+  getLocalizedProductDescription,
+  getLocalizedCategoryName,
+} from "@/lib/i18n/catalogTranslations";
 import type { Product, StockState } from "@/types/catalog";
 import type { ProductDetail } from "@/lib/api/types";
 
@@ -56,13 +61,13 @@ export function ProductInfo({
   const [copied, setCopied] = useState(false);
 
   // Fallbacks for bilingual title and description
-  const titleArabic = product.title_ar || product.name;
+  const titleArabic = product.title_ar || getLocalizedProductName(product.name, "ar");
   const titleEnglish = product.title_en || product.name;
   const displayTitle = activeLang === "ar" ? titleArabic : (product.title_en ? titleEnglish : titleArabic);
 
   const descArabic =
     product.description_ar ||
-    product.description ||
+    (product.description ? getLocalizedProductDescription(product.name, product.description, "ar") : "") ||
     "منتج محلي أصيل مصنوع يدوياً بعناية فائقة وفق أعلى معايير الجودة من المشاريع المنزلية والحرفية.";
   const descEnglish =
     product.description_en ||
@@ -119,7 +124,7 @@ export function ProductInfo({
         <div className="flex items-center gap-2 flex-wrap">
           {product.category?.name && (
             <span className="text-xs font-bold text-brand-600 bg-brand-50 px-3 py-1 rounded-pill border border-brand-200/80">
-              {product.category.name}
+              {getLocalizedCategoryName(product.category.name, locale)}
             </span>
           )}
 
