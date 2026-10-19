@@ -1,5 +1,8 @@
 import React from "react";
-import { getProducts, getCategories } from "@/lib/api/resources";
+import {
+  getProductsWithFallback,
+  getCategoriesWithFallback,
+} from "@/lib/api/fallback";
 import { listResults } from "@/lib/api/client";
 import { CatalogView } from "@/components/catalog";
 
@@ -27,13 +30,16 @@ export default async function CatalogPage(props: CatalogPageProps) {
   const page = searchParams.page ? parseInt(searchParams.page, 10) : undefined;
 
   const [productsPage, categories] = await Promise.all([
-    getProducts({
-      category: !isNaN(Number(categoryId)) ? categoryId : undefined,
-      search,
-      ordering,
-      page: !isNaN(Number(page)) ? page : undefined,
-    }),
-    getCategories(),
+    getProductsWithFallback(
+      {
+        category: !isNaN(Number(categoryId)) ? categoryId : undefined,
+        search,
+        ordering,
+        page: !isNaN(Number(page)) ? page : undefined,
+      },
+      locale
+    ),
+    getCategoriesWithFallback(locale),
   ]);
 
   const products = listResults(productsPage);

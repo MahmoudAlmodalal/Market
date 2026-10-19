@@ -1,7 +1,6 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { getProduct } from "@/lib/api/resources";
-import { ApiError } from "@/lib/api/client";
+import { getProductWithFallback } from "@/lib/api/fallback";
 import {
   ProductGallery,
   ProductInfo,
@@ -26,14 +25,9 @@ export default async function ProductDetailPage(props: ProductDetailPageProps) {
     notFound();
   }
 
-  let product;
-  try {
-    product = await getProduct(numId);
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) {
-      notFound();
-    }
-    throw err;
+  const product = await getProductWithFallback(numId, locale);
+  if (!product) {
+    notFound();
   }
 
   const rawLocale = locale;

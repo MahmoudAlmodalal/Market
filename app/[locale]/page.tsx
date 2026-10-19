@@ -1,5 +1,8 @@
 import React from "react";
-import { getProducts, getCategories } from "@/lib/api/resources";
+import {
+  getProductsWithFallback,
+  getCategoriesWithFallback,
+} from "@/lib/api/fallback";
 import { listResults } from "@/lib/api/client";
 import { HomeFeedClient } from "@/components/feed";
 
@@ -25,12 +28,15 @@ export default async function HomePage(props: HomePageProps) {
   const ordering = searchParams.ordering || undefined;
 
   const [productsPage, categories] = await Promise.all([
-    getProducts({
-      category: !isNaN(Number(categoryId)) ? categoryId : undefined,
-      search,
-      ordering,
-    }),
-    getCategories(),
+    getProductsWithFallback(
+      {
+        category: !isNaN(Number(categoryId)) ? categoryId : undefined,
+        search,
+        ordering,
+      },
+      locale
+    ),
+    getCategoriesWithFallback(locale),
   ]);
 
   const products = listResults(productsPage);

@@ -17,8 +17,8 @@ export default function LoginPage() {
   const { user, isLoading: authLoading, login } = useAuth();
   const router = useRouter();
 
-  const [email, setEmail] = useState("omar@souqi.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,8 +58,11 @@ export default function LoginPage() {
           );
         }
       } else {
+        // Not an ApiError → network failure (backend unreachable/offline).
         setError(
-          locale === "ar" ? "حدث خطأ أثناء تسجيل الدخول" : "Login error occurred"
+          locale === "ar"
+            ? "تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى."
+            : "Cannot reach the server. Please try again."
         );
       }
     } finally {
@@ -143,44 +146,8 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Quick Demo Logins */}
-          <div className="mt-5 pt-4 border-t border-neutral-100 flex flex-col gap-2">
-            <span className="text-[11px] sm:text-xs text-neutral-400 text-center font-medium">
-              {locale === "ar" ? "حسابات تجريبية سريعة" : "Quick Demo Accounts"}
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("omar@souqi.com");
-                  setPassword("password123");
-                }}
-                className="px-2 py-2 min-h-[44px] rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 active:scale-98 transition-all flex items-center justify-center text-center"
-              >
-                {locale === "ar" ? "مشتري (عمر)" : "Customer (Omar)"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("sara@souqi.com");
-                  setPassword("password123");
-                }}
-                className="px-2 py-2 min-h-[44px] rounded-xl border border-brand-200 text-xs font-semibold text-brand-600 bg-brand-50/50 hover:bg-brand-50 active:scale-98 transition-all flex items-center justify-center text-center"
-              >
-                {locale === "ar" ? "تاجر (سارة)" : "Seller (Sara)"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("admin@souqi.com");
-                  setPassword("password123");
-                }}
-                className="px-2 py-2 min-h-[44px] rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 active:scale-98 transition-all flex items-center justify-center text-center"
-              >
-                {locale === "ar" ? "مدير (Admin)" : "Admin"}
-              </button>
-            </div>
-          </div>
+
+
         </Card>
 
         {/* Register Redirection Link */}
